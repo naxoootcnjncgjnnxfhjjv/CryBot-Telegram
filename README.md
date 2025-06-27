@@ -14,4 +14,11 @@ Simple Telegram bot that responds to `/start` and can be deployed on platforms l
    npm start
    ```
 
-The bot listens for updates sent to `/webhook`. When hosted publicly and `WEBHOOK_URL` is defined, the webhook will be configured automatically.
+When hosting, set `WEBHOOK_URL` to your public URL and deploy the project. The webhook endpoint is `/webhook`.
+
+### Deployment tips
+
+- **Railway**: create a new Node.js project and provide your `.env` variables in the dashboard.
+- **Vercel**: deploy as a Node.js server. Ensure your `WEBHOOK_URL` points to the deployed URL.
+
+The `.env` file is excluded by `.gitignore` so your token won't be committed.
