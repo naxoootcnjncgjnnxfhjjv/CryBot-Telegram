@@ -2,12 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 
-const token = process.env.BOT_TOKEN;
-
-if (!token) {
-  console.error('BOT_TOKEN is not defined');
-  process.exit(1);
-}
+// Token proporcionado por el usuario
+const token = '7814370529:AAEEqPSTv1QVHxNCu8EJE4iAvp-bvxYtHaY';
 
 const bot = new TelegramBot(token);
 

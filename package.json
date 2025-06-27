@@ -1,7 +1,7 @@
 {
   "name": "crybot-telegram",
   "version": "1.0.0",
-  "description": "Telegram bot for airdrops",
+  "description": "Bot de Telegram para airdrops",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

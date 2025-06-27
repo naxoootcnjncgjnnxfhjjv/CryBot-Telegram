@@ -1,24 +1,24 @@
 # CryBot-Telegram
 
-Simple Telegram bot that responds to `/start` and can be deployed on platforms like Vercel or Railway using a webhook.
+Bot de Telegram que responde al comando `/start` y se puede desplegar en plataformas como Vercel o Railway mediante un webhook.
 
-## Setup
+## Uso
 
-1. Copy `.env.example` to `.env` and fill in your `BOT_TOKEN` and optional `WEBHOOK_URL`.
-2. Install dependencies:
+1. Instala las dependencias:
    ```bash
    npm install
    ```
-3. Start the bot locally:
+2. (Opcional) Crea un archivo `.env` con tu `WEBHOOK_URL` público.
+3. Inicia el bot localmente:
    ```bash
    npm start
    ```
 
-When hosting, set `WEBHOOK_URL` to your public URL and deploy the project. The webhook endpoint is `/webhook`.
+Cuando esté en producción, define `WEBHOOK_URL` con la URL de tu despliegue para que el bot registre automáticamente el webhook en `/webhook`.
 
-### Deployment tips
+### Despliegue
 
-- **Railway**: create a new Node.js project and provide your `.env` variables in the dashboard.
-- **Vercel**: deploy as a Node.js server. Ensure your `WEBHOOK_URL` points to the deployed URL.
+- **Railway**: crea un nuevo proyecto de Node.js y añade la variable `WEBHOOK_URL` en el panel de variables.
+- **Vercel**: despliega la aplicación como un servidor Node.js y asegúrate de definir `WEBHOOK_URL` con la URL pública.
 
-The `.env` file is excluded by `.gitignore` so your token won't be committed.
+El archivo `.env` está ignorado por Git mediante `.gitignore`.
