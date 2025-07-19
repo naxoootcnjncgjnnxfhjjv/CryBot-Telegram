@@ -1,0 +1,16 @@
+{
+  "name": "crybot-telegram",
+  "version": "1.0.0",
+  "description": "Bot de Telegram para escaneo automático de billeteras, reclamo de airdrops y venta de NFTs.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1",
+    "node-telegram-bot-api": "^0.61.0",
+    "web3": "^4.3.0",
+    "express": "^4.19.2"
+  }
+}
