@@ -2,14 +2,15 @@ name: NodeJS with Grunt
 
 on:
   push:
-    branches: ['**']         # todas las ramas
+    branches:
+      - '**'
   pull_request:
-    branches: ['**']         # PRs desde/hacia cualquier rama
+    branches:
+      - '**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
@@ -21,15 +22,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'       # acelera instalaciones
+          cache: 'npm'
 
       - name: Install deps
-        run: npm ci          # usa package-lock; si no lo tienes, cambia a `npm install`
+        run: npm install
 
       - name: Build with Grunt
-        run: npx grunt       # evita depender de grunt-cli global}
-
-    - name: Build
-      run: |
-        npm install
-        grunt
+        run: npx grunt
