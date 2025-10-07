@@ -12,3 +12,19 @@
     "web3": "^4.3.0"
   }
 }
+{
+  "name": "crybot-telegram",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "dependencies": {
+    "axios": "^1.7.5",
+    "telegraf": "^4.16.3"
+  }
+}
