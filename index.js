@@ -1,64 +1,73 @@
-// Requiere: telegraf y axios
+// index.js
 // npm i telegraf axios
 const { Telegraf } = require('telegraf');
 const axios = require('axios');
 
+if (!process.env.BOT_TOKEN) {
+  throw new Error('Falta BOT_TOKEN en variables de entorno');
+}
+
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// --- Helpers ---
+// -------- Helpers --------
 const isEvmAddress = (s) => /^0x[0-9a-fA-F]{40}$/.test(s);
-
-const CHAINS = {
-  eth: {
-    label: 'Ethereum',
-    baseUrl: 'https://api.etherscan.io/api',
-    envKey: 'ETHERSCAN_API_KEY',
-    symbol: 'ETH'
-  },
-  polygon: {
-    label: 'Polygon',
-    baseUrl: 'https://api.polygonscan.com/api',
-    envKey: 'POLYGONSCAN_API_KEY',
-    symbol: 'MATIC'
-  },
-  bsc: {
-    label: 'BNB Smart Chain',
-    baseUrl: 'https://api.bscscan.com/api',
-    envKey: 'BSCSCAN_API_KEY',
-    symbol: 'BNB'
-  }
-};
-
-// alias aceptados
 const NORMALIZE = {
   eth: 'eth', ethereum: 'eth', mainnet: 'eth',
-  polygon: 'polygon', matic: 'polygon', mumbai: 'polygon', pol: 'polygon',
+  polygon: 'polygon', matic: 'polygon', pol: 'polygon',
   bsc: 'bsc', bnb: 'bsc', binance: 'bsc'
 };
 
+const CHAINS = {
+  eth:    { label: 'Ethereum',        baseUrl: 'https://api.etherscan.io/api',     envKey: 'ETHERSCAN_API_KEY',   symbol: 'ETH',  decimals: 18 },
+  polygon:{ label: 'Polygon',         baseUrl: 'https://api.polygonscan.com/api',  envKey: 'POLYGONSCAN_API_KEY', symbol: 'MATIC',decimals: 18 },
+  bsc:    { label: 'BNB Smart Chain', baseUrl: 'https://api.bscscan.com/api',      envKey: 'BSCSCAN_API_KEY',     symbol: 'BNB',  decimals: 18 },
+};
+
+// BigInt -> string con decimales
+function formatUnitsBigInt(weiStr, decimals=18, dp=6) {
+  const wei = BigInt(weiStr);
+  const base = BigInt(10) ** BigInt(decimals);
+  const whole = wei / base;
+  const frac  = wei % base;
+  const fracStr = (base + frac).toString().slice(1).padStart(decimals, '0').slice(0, dp);
+  return `${whole.toString()}.${fracStr}`.replace(/\.$/, '');
+}
+
+// Llama a *scan* con control de rate-limit
 async function getScanBalance(chainKey, address) {
   const cfg = CHAINS[chainKey];
   if (!cfg) throw new Error('chain-no-soportada');
 
   const apiKey = process.env[cfg.envKey];
-  if (!apiKey) {
-    throw new Error(`Falta la variable de entorno ${cfg.envKey}`);
-  }
+  if (!apiKey) throw new Error(`Falta la variable de entorno ${cfg.envKey}`);
 
   const url = `${cfg.baseUrl}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
-  const { data } = await axios.get(url, { timeout: 15000 });
 
-  if (!data || data.status !== '1') {
-    const msg = data && data.message ? data.message : 'Respuesta inválida';
-    throw new Error(`API error: ${msg}`);
+  // 2 intentos por si hay 429/NOTOK
+  for (let i = 0; i < 2; i++) {
+    const { data } = await axios.get(url, { timeout: 15000 });
+    if (data?.status === '1') {
+      const balanceStr = data.result; // string en wei
+      return {
+        balanceStr,
+        symbol: cfg.symbol,
+        label: cfg.label,
+        decimals: cfg.decimals,
+      };
+    }
+    if ((data?.message || '').toUpperCase().includes('RATE')) {
+      await new Promise(r => setTimeout(r, 1200)); // backoff suave
+      continue;
+    }
+    throw new Error(`API error: ${data?.message || 'Respuesta inválida'}`);
   }
-
-  // wei -> unidad nativa
-  const balance = Number(data.result) / 1e18;
-  return { balance, symbol: cfg.symbol, label: cfg.label };
+  throw new Error('API error: rate limit');
 }
 
-// --- /saldo <wallet> [red] ---
+// -------- Comandos --------
+bot.start((ctx) => ctx.reply('✅ CryBot listo. Usa /saldo <walletEVM> [eth|polygon|bsc]'));
+bot.command('ping', (ctx) => ctx.reply('pong'));
+
 bot.command('saldo', async (ctx) => {
   try {
     const parts = ctx.message.text.trim().split(/\s+/);
@@ -70,14 +79,19 @@ bot.command('saldo', async (ctx) => {
       return ctx.reply('⚠️ Uso: /saldo <walletEVM> [eth|polygon|bsc]');
     }
 
-    const { balance, symbol, label } = await getScanBalance(chain, wallet);
+    const { balanceStr, symbol, label, decimals } = await getScanBalance(chain, wallet);
+    const pretty = formatUnitsBigInt(balanceStr, decimals, 6);
     const short = `${wallet.slice(0, 6)}…${wallet.slice(-4)}`;
 
-    return ctx.reply(`💰 ${label}\n${short}\n${balance.toFixed(6)} ${symbol}`);
+    return ctx.reply(`💰 ${label}\n${short}\n${pretty} ${symbol}`);
   } catch (err) {
-    console.error('[saldo]', err?.message || err);
-    return ctx.reply(`⚠️ Error al consultar el saldo. ${err?.message ? '('+err.message+')' : ''}`);
+    console.error('[saldo]', err);
+    return ctx.reply(`⚠️ Error al consultar el saldo ${err?.message ? '('+err.message+')' : ''}`);
   }
 });
 
-bot.launch();
+// Graceful stop en Railway/Node
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+bot.launch().then(() => console.log('🤖 Bot lanzado'));
