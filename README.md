@@ -17,3 +17,4 @@ Bot de Telegram para escaneo automático de wallets, reclamo de airdrops y venta
    ```
 
 3. En Telegram, envía `/saldo <direccion>` para obtener el balance en ETH de la dirección indicada.
+# Trigger CI
