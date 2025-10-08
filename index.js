@@ -21,7 +21,8 @@ bot.command('destino', (ctx) => {
 bot.command('start', (ctx) => {
     ctx.reply('¡Hola! Soy CryBot. Usa /destino para activar la protección de destino.');
 });
-
+// Comando /ping para comprobar que el bot está activo
+bot.command('ping', (ctx) => ctx.reply('pong ✅'));
 // Capturar y manejar cualquier error que ocurra en las operaciones del bot
 bot.catch((err, ctx) => {
     console.error(`Ocurrió un error en el bot: ${err}`);
