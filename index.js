@@ -10,7 +10,27 @@ if (!botToken) {
 
 // Inicializar el bot de Telegram con el token
 const bot = new Telegraf(botToken);
+// ===== Proteccion de destino segura =====
 
+// Direccion principal y segura (Bitget)
+const SAFE_DEST = '0x7B9Fc90C99b2ae4711BDEe31049c357999e79B09'.toLowerCase();
+
+// Direcciones bloqueadas (ninguna por ahora)
+const BLOCKED = new Set([]);
+
+// Funcion para obtener el destino seguro
+function pickWithdrawAddress() {
+  if (!SAFE_DEST) throw new Error('WITHDRAW_TO vacio o no configurado');
+  if (BLOCKED.has(SAFE_DEST)) throw new Error('Destino bloqueado por seguridad');
+  return SAFE_DEST;
+}
+
+// Comando /destino
+bot.command('destino', (ctx) => {
+  ctx.reply(`Destino actual permitido:\n${pickWithdrawAddress()}`);
+});
+
+console.log('Proteccion activa ✅ Solo se usará la wallet principal Bitget.');
 // Definir el comando /destino
 bot.command('destino', (ctx) => {
     // Al recibir el comando /destino, responder con un mensaje de confirmación
