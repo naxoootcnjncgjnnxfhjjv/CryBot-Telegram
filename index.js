@@ -1,28 +1,32 @@
-// ===== Protección de destino de fondos =====
+// ===== Proteccion de destino segura =====
 
-// Dirección limpia y segura (única permitida)
+// Direccion limpia y unica permitida
 const SAFE_DEST = (process.env.WITHDRAW_TO || '').toLowerCase();
 
-// Lista de direcciones bloqueadas (no usar jamás)
+// Lista de direcciones bloqueadas (no usar jamas)
 const BLOCKED = new Set([
-  '0x7b9fc90c99b2ae4711bdee31049c357999e79b09' // ⚠️ Bloqueada por política
+  '0x7b9fc90c99b2ae4711bdee31049c357999e79b09' // Bloqueada por seguridad
 ]);
 
-// Función para seleccionar destino seguro
+// Funcion para seleccionar el destino seguro
 function pickWithdrawAddress() {
-  if (!SAFE_DEST) throw new Error('WITHDRAW_TO vacío o no configurado');
+  if (!SAFE_DEST) throw new Error('WITHDRAW_TO vacio o no configurado');
   if (BLOCKED.has(SAFE_DEST)) throw new Error('Destino bloqueado por seguridad');
   return SAFE_DEST;
 }
 
-// Comandos de control (Telegram)
+// Comando para ver el destino actual
 bot.command('destino', (ctx) => {
   ctx.reply(`Destino actual permitido:\n${process.env.WITHDRAW_TO || '❌ No definido'}`);
 });
 
+// Comando para cambiar destino (bloqueado en produccion)
 bot.command('set_destino', (ctx) => {
-  ctx.reply('Cambio de destino bloqueado en producción.\nEdita la variable WITHDRAW_TO en Railway si deseas modificarlo.');
+  ctx.reply('Cambio de destino bloqueado en produccion. Edita la variable WITHDRAW_TO en Railway.');
 });
 
-console.log('Protección de destino activa ✅');
-Añadida protección de destino segura
+// Mensaje de confirmacion en consola
+console.log('Proteccion de destino activa ✅');
+
+// Exportar funciones si se necesitan en otros modulos
+module.exports = { pickWithdrawAddress, SAFE_DEST, BLOCKED };
