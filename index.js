@@ -1,9 +1,9 @@
 import { Telegraf } from 'telegraf';
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
-import { createRequire } from 'module';
-import { scheduleJob } from 'node-schedule';  // Para tareas programadas (opcional)
+import { scheduleJob } from 'node-schedule';
 
+// Import helpers and services
 import { marketplaceOpenSea } from './commands/sell_opensea.js';
 import { marketplaceLooksRare } from './commands/sell_looksrare.js';
 import { marketplaceBlur } from './commands/sell_blur.js';
@@ -14,28 +14,43 @@ import { loadConfig } from './config.js';
 
 // Cargar configuración de entorno
 dotenv.config();
-const config = loadConfig();  // carga todas las variables necesarias
+const config = loadConfig();
 
-// Inicializar provider y wallet desde config
+// Inicializar provider y wallet
 const provider = new ethers.JsonRpcProvider(config.rpcUrl);
 let wallet;
 try {
   wallet = new ethers.Wallet(config.privateKey, provider);
 } catch (err) {
-  console.error("Error: Clave privada inválida o no proporcionada.");
+  console.error('Error: Clave privada inválida o no proporcionada.');
   process.exit(1);
 }
 
 // Inicializar bot de Telegraf
 const bot = new Telegraf(config.botToken);
 
-// Middleware de autorización: solo permitir comandos del OWNER_ID
+// Middleware de autorización: solo el OWNER_ID puede usar el bot
 bot.use((ctx, next) => {
   if (ctx.from && ctx.from.id === config.ownerId) {
     return next();
   }
-  // Ignorar cualquier otro usuario
-  return;  // no responde ni sigue a next()
+  // Ignorar mensajes de otros usuarios
+  return;
+});
+
+// Comando /help: muestra comandos disponibles
+bot.command('help', ctx => {
+  ctx.reply([
+    '📌 Comandos disponibles:',
+    '/ping - Comprueba si el bot está activo',
+    '/balance [address] - Muestra el saldo ETH de una dirección (por defecto la wallet del bot)',
+    '/destino - Muestra la dirección destino configurada',
+    '/vender <market> <collection> <tokenId> <precio> [moneda=ETH|WETH] [tipo=ERC721|ERC1155] [cantidad] [duracion en días] - Crea una orden de venta',
+    '/confirmar <codigo> - Confirma la acción de venta pendiente',
+    '/claim <contrato> - Reclama recompensas de un contrato',
+    '/claimall [contratos...] - Reclama recompensas de todos los contratos configurados o especificados',
+    '/help - Muestra este mensaje de ayuda'
+  ].join('\n'));
 });
 
 // Comando /ping
@@ -46,7 +61,6 @@ bot.command('ping', ctx => {
 // Comando /balance [address]
 bot.command('balance', async ctx => {
   try {
-    // Tomar la dirección proporcionada o la por defecto (wallet del bot)
     const parts = ctx.message.text.trim().split(' ');
     let address = config.walletAddress;
     if (parts.length > 1 && ethers.isAddress(parts[1])) {
@@ -57,7 +71,7 @@ bot.command('balance', async ctx => {
     ctx.reply(`💰 Saldo de ${address}:\n${ethBalance} ETH`);
   } catch (error) {
     console.error(error);
-    ctx.reply('❌ Error obteniendo balance.');
+    ctx.reply('❌ Error obteniendo el balance.');
   }
 });
 
@@ -74,7 +88,7 @@ bot.command('destino', ctx => {
 let pendingAction = null;
 let pendingCode = null;
 
-// Comando /vender [market] [collection] [tokenId] [price] [currency] [type] [quantity] [duration]
+// Comando /vender
 bot.command('vender', async ctx => {
   const params = ctx.message.text.split(' ').slice(1);
   if (params.length < 5) {
@@ -91,37 +105,54 @@ bot.command('vender', async ctx => {
     ctx.reply('❌ Dirección de colección inválida.');
     return;
   }
-  // Moneda valida: ETH o WETH
   const currencyUpper = currency.toUpperCase();
   if (!['ETH', 'WETH'].includes(currencyUpper)) {
     ctx.reply('❌ Moneda inválida. Use ETH o WETH.');
     return;
   }
-  // Tipo: ERC721 o ERC1155
   const typeUpper = type ? type.toUpperCase() : 'ERC721';
   if (!['ERC721', 'ERC1155'].includes(typeUpper)) {
     ctx.reply('❌ Tipo inválido. Use ERC721 o ERC1155.');
     return;
   }
-  const sellQuantity = quantity ? parseInt(quantity) : 1;
-  const durationDays = duration ? parseInt(duration) : 1;  // por defecto 1 día
-  
+  // Validar precio y parsear
+  const priceFloat = parseFloat(price);
+  if (isNaN(priceFloat) || priceFloat <= 0) {
+    ctx.reply('❌ Precio inválido.');
+    return;
+  }
+  // Validar cantidad (solo aplica a ERC1155)
+  const qtyInt = quantity ? parseInt(quantity, 10) : 1;
+  if (typeUpper === 'ERC1155' && (isNaN(qtyInt) || qtyInt <= 0)) {
+    ctx.reply('❌ Cantidad inválida para ERC1155.');
+    return;
+  }
+  // Validar duración
+  const durInt = duration ? parseInt(duration, 10) : 1;
+  if (isNaN(durInt) || durInt <= 0) {
+    ctx.reply('❌ Duración inválida.');
+    return;
+  }
   // Generar código de confirmación
-  pendingCode = Math.floor(Math.random() * 900000 + 100000);  // código de 6 dígitos
+  pendingCode = Math.floor(Math.random() * 900000 + 100000);
   pendingAction = {
     market: marketLower,
     collection,
     tokenId,
-    price,
+    price: priceFloat,
     currency: currencyUpper,
     type: typeUpper,
-    quantity: sellQuantity,
-    duration: durationDays
+    quantity: qtyInt,
+    duration: durInt
   };
-  ctx.reply(`⚠️ Confirma la venta del NFT \`${collection} #${tokenId}\` en *${marketLower}* por *${price} ${currencyUpper}*.\nResponde con /confirmar ${pendingCode} para confirmar.`, { parse_mode: 'Markdown' });
+  ctx.reply(
+    `⚠️ Confirma la venta del NFT \`${collection} #${tokenId}\` en *${marketLower}* por *${priceFloat} ${currencyUpper}*.` +
+    `\nResponde con /confirmar ${pendingCode} para confirmar.`,
+    { parse_mode: 'Markdown' }
+  );
 });
 
-// Comando /confirmar [codigo]
+// Comando /confirmar
 bot.command('confirmar', async ctx => {
   const parts = ctx.message.text.split(' ');
   if (parts.length < 2) {
@@ -137,7 +168,7 @@ bot.command('confirmar', async ctx => {
     ctx.reply('❌ Código de confirmación incorrecto.');
     return;
   }
-  // Código válido: ejecutar la acción pendiente
+  // Código válido: ejecutar la acción
   const action = pendingAction;
   pendingAction = null;
   pendingCode = null;
@@ -145,16 +176,24 @@ bot.command('confirmar', async ctx => {
   try {
     let result;
     if (action.market === 'opensea') {
-      result = await marketplaceOpenSea(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration);
+      result = await withTxDelay(() =>
+        marketplaceOpenSea(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration)
+      );
     } else if (action.market === 'looksrare') {
-      result = await marketplaceLooksRare(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration);
+      result = await withTxDelay(() =>
+        marketplaceLooksRare(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration)
+      );
     } else if (action.market === 'blur') {
-      result = await marketplaceBlur(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration);
+      result = await withTxDelay(() =>
+        marketplaceBlur(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration)
+      );
     }
     if (result && result.success) {
       ctx.reply(`✅ NFT listado correctamente en ${action.market}.\n${result.message}`);
     } else {
-      ctx.reply(`⚠️ Se ejecutó la orden en ${action.market}, pero no se pudo confirmar el listado. ${result ? result.message : ''}`);
+      ctx.reply(
+        `⚠️ Se ejecutó la orden en ${action.market}, pero no se pudo confirmar el listado. ${result ? result.message : ''}`
+      );
     }
   } catch (error) {
     console.error('Error en /confirmar:', error);
@@ -162,7 +201,7 @@ bot.command('confirmar', async ctx => {
   }
 });
 
-// Comando /claim [contract]
+// Comando /claim
 bot.command('claim', async ctx => {
   const parts = ctx.message.text.split(' ');
   if (parts.length < 2) {
@@ -176,7 +215,7 @@ bot.command('claim', async ctx => {
   }
   ctx.reply(`⏳ Reclamando recompensas en contrato ${contractAddr}...`);
   try {
-    const tx = await claimRewards(wallet, contractAddr);
+    const tx = await withTxDelay(() => claimRewards(wallet, contractAddr));
     if (tx) {
       ctx.reply(`✅ Recompensas reclamadas en ${contractAddr}. TX: ${tx.hash}`);
     } else {
@@ -188,11 +227,12 @@ bot.command('claim', async ctx => {
   }
 });
 
-// Comando /claimall [optional list]
+// Comando /claimall
 bot.command('claimall', async ctx => {
-  // Permitir lista de contratos en el mensaje
-  const parts = ctx.message.text.split(' ').slice(1);
-  let contracts = config.contractsToClaim;
+  // Permitir lista de contratos separados por espacios o comas
+  const raw = ctx.message.text.split(' ').slice(1).join(' ');
+  const parts = raw.split(/[,\s]+/).filter(Boolean);
+  let contracts = config.contractsToClaim || [];
   if (parts.length > 0) {
     contracts = parts.filter(addr => ethers.isAddress(addr));
   }
@@ -204,7 +244,7 @@ bot.command('claimall', async ctx => {
   let summary = '';
   for (const addr of contracts) {
     try {
-      const tx = await claimRewards(wallet, addr);
+      const tx = await withTxDelay(() => claimRewards(wallet, addr));
       if (tx) {
         summary += `✅ ${addr}: TX ${tx.hash}\n`;
       } else {
@@ -218,25 +258,26 @@ bot.command('claimall', async ctx => {
   ctx.reply(`🪂 *Resultado de Claim All:*\n${summary}`, { parse_mode: 'Markdown' });
 });
 
-// Iniciar monitoreo de eventos (tracking de wallet Bitget u otra)
+// Iniciar monitoreo de eventos si hay dirección de seguimiento
 if (config.trackAddress) {
   setupTracking(provider, bot, config.trackAddress, config.ownerId);
   console.log(`🔍 Tracking habilitado para la dirección: ${config.trackAddress}`);
 }
 
-// Programar tarea de harvest periódico si está configurado intervalo
+// Programar tarea de harvest periódico
 if (config.harvestInterval > 0) {
   const intervalMin = config.harvestInterval;
-  // Usamos node-schedule para ejecutar cada X minutos
   scheduleJob(`*/${intervalMin} * * * *`, async () => {
     if (config.contractsToClaim && config.contractsToClaim.length > 0) {
       console.log('⏲️ Ejecución periódica de harvest para contratos configurados...');
       for (const addr of config.contractsToClaim) {
         try {
-          const tx = await claimRewards(wallet, addr);
+          const tx = await withTxDelay(() => claimRewards(wallet, addr));
           if (tx) {
-            // Notificar via Telegram al owner
-            bot.telegram.sendMessage(config.ownerId, `⏲️ Harvest auto: Recompensas reclamadas en ${addr}. TX: ${tx.hash}`);
+            bot.telegram.sendMessage(
+              config.ownerId,
+              `⏲️ Harvest auto: Recompensas reclamadas en ${addr}. TX: ${tx.hash}`
+            );
           }
         } catch (err) {
           console.error(`Error en harvest programado (${addr}):`, err);
@@ -253,6 +294,12 @@ bot.launch().then(() => {
   console.error('Error al iniciar el bot:', err);
 });
 
-// Manejar gracefully el stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// Manejar señal de parada
+process.once('SIGINT', () => {
+  console.log('SIGINT detectado, deteniendo bot.');
+  bot.stop('SIGINT');
+});
+process.once('SIGTERM', () => {
+  console.log('SIGTERM detectado, deteniendo bot.');
+  bot.stop('SIGTERM');
+});
