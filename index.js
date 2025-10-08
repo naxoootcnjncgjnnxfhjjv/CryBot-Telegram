@@ -25,3 +25,4 @@ bot.command('set_destino', (ctx) => {
 });
 
 console.log('Protección de destino activa ✅');
+Añadida protección de destino segura
