@@ -1,32 +1,48 @@
-// ===== Proteccion de destino segura =====
+// Importar la clase Telegraf desde la librería telegraf
+const { Telegraf } = require('telegraf');
 
-// Direccion limpia y unica permitida
-const SAFE_DEST = (process.env.WITHDRAW_TO || '').toLowerCase();
-
-// Lista de direcciones bloqueadas (no usar jamas)
-const BLOCKED = new Set([
-  '0x7b9fc90c99b2ae4711bdee31049c357999e79b09' // Bloqueada por seguridad
-]);
-
-// Funcion para seleccionar el destino seguro
-function pickWithdrawAddress() {
-  if (!SAFE_DEST) throw new Error('WITHDRAW_TO vacio o no configurado');
-  if (BLOCKED.has(SAFE_DEST)) throw new Error('Destino bloqueado por seguridad');
-  return SAFE_DEST;
+// Obtener el token del bot desde la variable de entorno BOT_TOKEN
+const botToken = process.env.BOT_TOKEN;
+if (!botToken) {
+    console.error('Error: la variable de entorno BOT_TOKEN no está definida');
+    process.exit(1); // Terminar la ejecución si no hay token
 }
 
-// Comando para ver el destino actual
+// Inicializar el bot de Telegram con el token
+const bot = new Telegraf(botToken);
+
+// Definir el comando /destino
 bot.command('destino', (ctx) => {
-  ctx.reply(`Destino actual permitido:\n${process.env.WITHDRAW_TO || '❌ No definido'}`);
+    // Al recibir el comando /destino, responder con un mensaje de confirmación
+    ctx.reply('Protección de destino segura activada');
 });
 
-// Comando para cambiar destino (bloqueado en produccion)
-bot.command('set_destino', (ctx) => {
-  ctx.reply('Cambio de destino bloqueado en produccion. Edita la variable WITHDRAW_TO en Railway.');
+// (Opcional) Definir el comando /start para mostrar un mensaje de bienvenida
+bot.command('start', (ctx) => {
+    ctx.reply('¡Hola! Soy CryBot. Usa /destino para activar la protección de destino.');
 });
 
-// Mensaje de confirmacion en consola
-console.log('Proteccion de destino activa ✅');
+// Capturar y manejar cualquier error que ocurra en las operaciones del bot
+bot.catch((err, ctx) => {
+    console.error(`Ocurrió un error en el bot: ${err}`);
+    // Podemos agregar más manejo de errores aquí si es necesario
+});
 
-// Exportar funciones si se necesitan en otros modulos
-module.exports = { pickWithdrawAddress, SAFE_DEST, BLOCKED };
+// Iniciar el bot (comenzar a sondear Telegram en busca de nuevos mensajes)
+bot.launch()
+    .then(() => {
+        console.log('CryBot se ha iniciado correctamente.');
+    })
+    .catch((err) => {
+        console.error('No se pudo iniciar CryBot:', err);
+    });
+
+// Habilitar la detención segura del bot en caso de que el proceso se termine
+process.once('SIGINT', () => {
+    console.log('Proceso interrumpido (SIGINT). Deteniendo CryBot...');
+    bot.stop('SIGINT');
+});
+process.once('SIGTERM', () => {
+    console.log('Proceso terminado (SIGTERM). Deteniendo CryBot...');
+    bot.stop('SIGTERM');
+});
