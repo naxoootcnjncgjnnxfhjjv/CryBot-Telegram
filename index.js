@@ -1,16 +1,16 @@
 // index.js (ESM)
 // npm i telegraf ethers @opensea/seaport-js
 import { Telegraf } from 'telegraf';
-import { isAddress } from 'ethers';
+import { ethers, isAddress } from 'ethers';
 import { listOnOpenSea } from './sell_opensea.js';
 import { listOnLooksRare } from './sell_looksrare.js';
 import { listOnBlur } from './sell_blur.js';
 
 // ===== ENV obligatorias =====
-const BOT_TOKEN  = process.env.BOT_TOKEN;
-const OWNER_ID   = process.env.OWNER_ID ? Number(process.env.OWNER_ID) : null;
-const ETH_RPC_URL = process.env.ETH_RPC_URL;   // Infura/Alchemy/propio
-const PRIVATE_KEY = process.env.PRIVATE_KEY;   // Wallet que posee/autoriza NFT
+const BOT_TOKEN   = process.env.BOT_TOKEN;
+const OWNER_ID    = process.env.OWNER_ID ? Number(process.env.OWNER_ID) : null;
+const ETH_RPC_URL = process.env.ETH_RPC_URL;   // Infura/Alchemy/Propio
+const PRIVATE_KEY = process.env.PRIVATE_KEY;   // Wallet que firma
 
 // ===== ENV opcionales =====
 const OPENSEA_API_KEY = process.env.OPENSEA_API_KEY || '';
@@ -21,16 +21,44 @@ const BLOCKED_COLLECTIONS = new Set(
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
 );
 
-if (!BOT_TOKEN)  { console.error('Falta BOT_TOKEN');  process.exit(1); }
-if (!ETH_RPC_URL){ console.error('Falta ETH_RPC_URL');process.exit(1); }
-if (!PRIVATE_KEY){ console.error('Falta PRIVATE_KEY');process.exit(1); }
+// ===== Validación de arranque =====
+if (!BOT_TOKEN)   { console.error('Falta BOT_TOKEN');   process.exit(1); }
+if (!ETH_RPC_URL) { console.error('Falta ETH_RPC_URL'); process.exit(1); }
+if (!PRIVATE_KEY) { console.error('Falta PRIVATE_KEY'); process.exit(1); }
 
-// ===== Helpers =====
-const onlyOwner = (ctx) => OWNER_ID ? (ctx.from && ctx.from.id === OWNER_ID) : true;
+// ===== Provider/Signer (globales) =====
+const provider = new ethers.JsonRpcProvider(ETH_RPC_URL);
+const signer   = new ethers.Wallet(PRIVATE_KEY, provider);
+
+// ===== Helpers base =====
+const onlyOwner   = (ctx) => OWNER_ID ? (ctx.from && ctx.from.id === OWNER_ID) : true;
 const assertOwner = (ctx) => { if (!onlyOwner(ctx)) throw new Error('No autorizado'); };
-const assertEvm = (a) => { if (!isAddress(a)) throw new Error(`Dirección inválida: ${a}`); };
-const assertPos = (v, name='valor') => { if (!(Number(v) > 0)) throw new Error(`${name} debe ser > 0`); };
+const assertEvm   = (a)   => { if (!isAddress(a)) throw new Error(`Dirección inválida: ${a}`); };
+const assertPos   = (v,n='valor') => { if (!(Number(v)>0)) throw new Error(`${n} debe ser > 0`); };
 
+// ===== Balance helpers =====
+const WETH_MAINNET = process.env.WETH_ADDRESS || '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+const ERC20_ABI = [
+  'function balanceOf(address) view returns (uint256)',
+  'function decimals() view returns (uint8)',
+  'function symbol() view returns (string)'
+];
+async function getEthBalance(address) {
+  const wei = await provider.getBalance(address);
+  return Number(ethers.formatEther(wei));
+}
+async function getErc20Balance(address, token) {
+  const c = new ethers.Contract(token, ERC20_ABI, provider);
+  const [raw, decimals, symbol] = await Promise.all([
+    c.balanceOf(address),
+    c.decimals(),
+    c.symbol().catch(() => 'ERC20')
+  ]);
+  const amt = Number(raw) / (10 ** Number(decimals));
+  return { amount: amt, symbol };
+}
+
+// ===== Estado de pre-órdenes (/vender -> /confirmar) =====
 const pending = new Map(); // code -> payload
 const genCode = () => Math.random().toString(36).slice(2, 10);
 
@@ -43,9 +71,11 @@ bot.command('start', (ctx) => {
     'Comandos:',
     '• /ping',
     '• /destino',
+    '• /balance [addressOpcional]',
     '• /vender <market> <collection> <tokenId> <precio> [moneda=ETH|WETH] [tipo=erc721|erc1155] [cantidad=1] [duracionh=24]',
     '   Ej: /vender opensea 0xabc... 1234 0.08 WETH erc721 1 24',
-    '• /confirmar <codigo>'
+    '• /confirmar <codigo>',
+    '• /claim <contract>  (intenta claim() y claim(address))'
   ].join('\n'));
 });
 
@@ -56,7 +86,33 @@ bot.command('destino', (ctx) => {
   catch { ctx.reply('Destino protegido: ✅'); }
 });
 
-// /vender <market> <collection> <tokenId> <precio> [moneda] [tipo] [cantidad] [duracionh]
+// ------- /balance -------
+bot.command('balance', async (ctx) => {
+  try {
+    const parts = ctx.message.text.trim().split(/\s+/);
+    const addr = parts[1] && parts[1].startsWith('0x')
+      ? parts[1]
+      : await signer.getAddress();
+
+    if (!isAddress(addr)) return ctx.reply('❌ Dirección inválida');
+
+    const [eth, weth] = await Promise.all([
+      getEthBalance(addr),
+      getErc20Balance(addr, WETH_MAINNET)
+        .then(x => x).catch(() => ({ amount: 0, symbol: 'WETH' }))
+    ]);
+
+    ctx.reply([
+      `👤 Address: ${addr}`,
+      `• ETH:  ${eth}`,
+      `• ${weth.symbol}: ${weth.amount}`
+    ].join('\n'));
+  } catch (e) {
+    ctx.reply(`❌ ${e.message}`);
+  }
+});
+
+// ------- /vender -------
 bot.command('vender', async (ctx) => {
   try {
     assertOwner(ctx);
@@ -102,6 +158,7 @@ bot.command('vender', async (ctx) => {
   }
 });
 
+// ------- /confirmar -------
 bot.command('confirmar', async (ctx) => {
   try {
     assertOwner(ctx);
@@ -124,7 +181,7 @@ bot.command('confirmar', async (ctx) => {
         tokenId,
         tokenType: type,      // 'erc721' | 'erc1155'
         quantity,
-        currency,             // 'ETH' | 'WETH'
+        currency,             // 'ETH' | 'WETH' (marcado)
         price,
         durationHours
       });
@@ -155,6 +212,41 @@ bot.command('confirmar', async (ctx) => {
   }
 });
 
+// ------- /claim  (airdrop genérico) -------
+// Intenta: claim()  -> si falla, claim(address) pasando tu address
+const ABI_CLAIM_NOARGS = [ 'function claim()' ];
+const ABI_CLAIM_ADDRESS = [ 'function claim(address)' ];
+
+bot.command('claim', async (ctx) => {
+  try {
+    assertOwner(ctx);
+    const parts = ctx.message.text.trim().split(/\s+/);
+    if (parts.length < 2) return ctx.reply('Uso: /claim <contract>');
+    const contractAddr = parts[1];
+    assertEvm(contractAddr);
+
+    const user = await signer.getAddress();
+    const cNo = new ethers.Contract(contractAddr, ABI_CLAIM_NOARGS, signer);
+    const cAd = new ethers.Contract(contractAddr, ABI_CLAIM_ADDRESS, signer);
+
+    ctx.reply('⏳ Intentando claim()…');
+    try {
+      const tx1 = await cNo.claim();
+      await tx1.wait();
+      return ctx.reply(`✅ Claim ejecutado (claim())\nTx: ${tx1.hash}`);
+    } catch (_) {
+      ctx.reply('⚠️ claim() falló, intento claim(address)…');
+    }
+
+    const tx2 = await cAd.claim(user);
+    await tx2.wait();
+    ctx.reply(`✅ Claim ejecutado (claim(address))\nTx: ${tx2.hash}`);
+  } catch (e) {
+    ctx.reply(`❌ ${e.message}`);
+  }
+});
+
+// ===== Errores y arranque =====
 bot.catch((err) => console.error('Error en CryBot:', err));
 
 (async () => {
