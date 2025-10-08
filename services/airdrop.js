@@ -1,87 +1,110 @@
 import { ethers } from 'ethers';
 
-// ABI fragmentos para funciones posibles
+// ABI para funciones de reclamación
 const ABI_CLAIM_FUNCTIONS = [
-  "function claim() external",
-  "function claim(address) external",
-  "function harvest() external",
-  "function getReward() external",
-  "function withdraw() external",           // algunos contratos usan withdraw() para claim (sin parámetros)
-  "function withdraw(uint256) external",    // pool de staking donde withdraw(cantidad) retira y a veces también reclama
-  "function exit() external"
+  'function claim() external',
+  'function claim(address) external',
+  'function harvest() external',
+  'function getReward() external',
+  'function withdraw() external',
+  'function withdraw(uint256) external',
+  'function exit() external'
 ];
-// ABI fragmentos para leer posibles acumulaciones
+
+// ABI para funciones de lectura de recompensas pendientes
 const ABI_VIEW_FUNCTIONS = [
-  "function claimable(address) view returns (uint256)",
-  "function earned(address) view returns (uint256)",   // algunos staking usan earned()
-  "function pendingReward(address) view returns (uint256)",
-  "function pendingRewards(address) view returns (uint256)",
-  "function balanceOf(address) view returns (uint256)" // en algunos casos, tokens acumulados se reflejan como balance en el contrato de recompensa
+  'function claimable(address) view returns (uint256)',
+  'function earned(address) view returns (uint256)',
+  'function pendingReward(address) view returns (uint256)',
+  'function pendingRewards(address) view returns (uint256)',
+  'function balanceOf(address) view returns (uint256)'
 ];
 
+// Reclamación de recompensas para un contrato
 export async function claimRewards(wallet, contractAddress) {
-  const contract = new ethers.Contract(contractAddress, [...ABI_CLAIM_FUNCTIONS, ...ABI_VIEW_FUNCTIONS], wallet);
-
-  // Primero, chequear si hay algo que reclamar para evitar tx inútil
+  const contract = new ethers.Contract(
+    contractAddress,
+    [...ABI_CLAIM_FUNCTIONS, ...ABI_VIEW_FUNCTIONS],
+    wallet
+  );
   const userAddr = wallet.address;
   let claimable = null;
-  for (const func of ["claimable", "earned", "pendingReward", "pendingRewards"]) {
-    if (contract[func] !== undefined) {
+
+  // 1. Intentar leer recompensas pendientes con funciones comunes
+  for (const fn of ['claimable', 'earned', 'pendingReward', 'pendingRewards']) {
+    if (typeof contract[fn] === 'function') {
       try {
-        const pending = await contract[func](userAddr);
+        const pending = await contract[fn](userAddr);
         if (pending && pending.toString && ethers.toBigInt(pending) > 0n) {
           claimable = ethers.toBigInt(pending);
           break;
         }
-      } catch {}
+      } catch {
+        // Ignorar errores de lectura y probar la siguiente función
+      }
     }
   }
-  // Algunos contratos acumulan recompensas como "balanceOf"
-  if (claimable === null && contract["balanceOf"] !== undefined) {
+
+  // 2. Algunos contratos reflejan las recompensas acumuladas en balanceOf()
+  if (claimable === null && typeof contract.balanceOf === 'function') {
     try {
       const bal = await contract.balanceOf(userAddr);
       if (bal && ethers.toBigInt(bal) > 0n) {
         claimable = ethers.toBigInt(bal);
       }
-    } catch {}
+    } catch {
+      // Ignorar errores de balance
+    }
   }
+
+  // Si existe claimable pero es 0, no hay nada que reclamar
   if (claimable !== null && claimable === 0n) {
-    // Hay función pero retorna 0 (no hay nada)
     return null;
   }
-  // Si ninguna función de lectura indicó nada, de todas formas podríamos intentar claim (puede ser que no exista una view)
-  // Proceder a intentar cada función de claim hasta dar con la correcta
-  const claimFuncs = ["claim(address)", "claim()", "harvest()", "getReward()", "withdraw()", "withdraw(uint256)", "exit()"];
+
+  // 3. Intentar cada posible función de reclamación en orden
+  const claimFuncs = [
+    'claim(address)',
+    'claim()',
+    'harvest()',
+    'getReward()',
+    'withdraw()',
+    'withdraw(uint256)',
+    'exit()'
+  ];
+
   for (const sig of claimFuncs) {
-    if (contract[sig.split('(')[0]] !== undefined) {  // comprobar existencia
+    const fnName = sig.split('(')[0];
+    if (typeof contract[fnName] === 'function') {
       try {
         let tx;
-        if (sig === "claim(address)") {
-          tx = await contract["claim"](userAddr);
-        } else if (sig === "withdraw(uint256)") {
-          // withdraw(uint256): normalmente requiere cantidad staked; aquí pasamos 0 para solo claim, si acepta 0.
-          tx = await contract["withdraw"](0);
+        if (sig === 'claim(address)') {
+          // Pasar la address del usuario cuando la firma lo requiere
+          tx = await contract.claim(userAddr);
+        } else if (sig === 'withdraw(uint256)') {
+          // Para withdraw(uint256) intentamos con 0 (solo claim sin retirar stake)
+          tx = await contract.withdraw(0);
         } else {
-          // claim(), harvest(), getReward(), withdraw(), exit() sin params
-          tx = await contract[sig.split('(')[0]]();
+          tx = await contract[fnName]();
         }
-        await tx.wait();
+        await tx.wait(); // Esperar a que la transacción se minte
         return tx;
       } catch (err) {
-        // Si la llamada no es válida (p.ej. función inexistente lanza error, o revert), probamos la siguiente
-        if (err.message && err.message.includes("function")) {
+        // Si el error indica “function ... not exists” o similar, continuamos con la siguiente firma
+        if (err && err.message && err.message.includes('function')) {
           continue;
-        } else {
-          // Si es un error diferente (revert con mensaje), lo lanzamos hacia arriba
-          throw err;
         }
+        // Propagamos otros errores (por ejemplo, revert con mensaje)
+        throw err;
       }
     }
   }
-  // Si llegó aquí, ninguna función encajó o todas fallaron
+
+  // Si ninguna función se ejecutó correctamente, devolver null
   return null;
 }
 
+// Reclamación en lote para varios contratos
 export async function claimAllRewards(wallet, contractAddresses) {
   const results = [];
   for (const addr of contractAddresses) {
