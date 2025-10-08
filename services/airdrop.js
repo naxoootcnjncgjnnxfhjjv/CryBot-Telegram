@@ -20,7 +20,6 @@ const ABI_VIEW_FUNCTIONS = [
   'function balanceOf(address) view returns (uint256)'
 ];
 
-// Reclamación de recompensas para un contrato
 export async function claimRewards(wallet, contractAddress) {
   const contract = new ethers.Contract(
     contractAddress,
@@ -30,17 +29,17 @@ export async function claimRewards(wallet, contractAddress) {
   const userAddr = wallet.address;
   let claimable = null;
 
-  // 1. Intentar leer recompensas pendientes con funciones comunes
+  // 1. Leer recompensas pendientes con funciones comunes
   for (const fn of ['claimable', 'earned', 'pendingReward', 'pendingRewards']) {
     if (typeof contract[fn] === 'function') {
       try {
         const pending = await contract[fn](userAddr);
-        if (pending && pending.toString && ethers.toBigInt(pending) > 0n) {
+        if (pending && ethers.toBigInt(pending) > 0n) {
           claimable = ethers.toBigInt(pending);
           break;
         }
       } catch {
-        // Ignorar errores de lectura y probar la siguiente función
+        // Ignorar errores y probar la siguiente función
       }
     }
   }
@@ -57,7 +56,7 @@ export async function claimRewards(wallet, contractAddress) {
     }
   }
 
-  // Si existe claimable pero es 0, no hay nada que reclamar
+  // Si claimable es 0, no hay nada que reclamar
   if (claimable !== null && claimable === 0n) {
     return null;
   }
@@ -79,32 +78,31 @@ export async function claimRewards(wallet, contractAddress) {
       try {
         let tx;
         if (sig === 'claim(address)') {
-          // Pasar la address del usuario cuando la firma lo requiere
+          // Pasar la dirección del usuario
           tx = await contract.claim(userAddr);
         } else if (sig === 'withdraw(uint256)') {
-          // Para withdraw(uint256) intentamos con 0 (solo claim sin retirar stake)
+          // Algunos contratos usan withdraw(0) para reclamar sin retirar stake
           tx = await contract.withdraw(0);
         } else {
           tx = await contract[fnName]();
         }
-        await tx.wait(); // Esperar a que la transacción se minte
+        await tx.wait(); // Esperar a que la transacción sea minada
         return tx;
       } catch (err) {
-        // Si el error indica “function ... not exists” o similar, continuamos con la siguiente firma
+        // Si falla por inexistencia o firma no válida, continuar con la siguiente firma
         if (err && err.message && err.message.includes('function')) {
           continue;
         }
-        // Propagamos otros errores (por ejemplo, revert con mensaje)
+        // Cualquier otro error se propaga para permitir su manejo externo
         throw err;
       }
     }
   }
 
-  // Si ninguna función se ejecutó correctamente, devolver null
+  // Si ninguna función pudo ejecutarse, devolver null
   return null;
 }
 
-// Reclamación en lote para varios contratos
 export async function claimAllRewards(wallet, contractAddresses) {
   const results = [];
   for (const addr of contractAddresses) {
