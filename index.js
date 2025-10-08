@@ -245,7 +245,50 @@ bot.command('claim', async (ctx) => {
     ctx.reply(`❌ ${e.message}`);
   }
 });
+// ------- /claim (versión definitiva) -------
+// Soporta claim(address) y claim() automáticamente
+const ABI_CLAIM_ADDRESS = [ 'function claim(address)' ];
+const ABI_CLAIM_NOARGS  = [ 'function claim()' ];
 
+bot.command('claim', async (ctx) => {
+  try {
+    assertOwner(ctx);
+    const parts = ctx.message.text.trim().split(/\s+/);
+    if (parts.length < 2) return ctx.reply('Uso: /claim <contrato>');
+    const contractAddr = parts[1];
+    assertEvm(contractAddr);
+
+    const user = await signer.getAddress();
+    const contractAddrLower = contractAddr.toLowerCase();
+
+    ctx.reply(`⏳ Ejecutando claim para:\n${contractAddrLower}\n\nCuenta: ${user}`);
+
+    // Intentar claim(address)
+    try {
+      const cAddr = new ethers.Contract(contractAddrLower, ABI_CLAIM_ADDRESS, signer);
+      const tx1 = await cAddr.claim(user);
+      ctx.reply(`⏳ Tx enviada (claim(address)): ${tx1.hash}`);
+      const receipt = await tx1.wait();
+      return ctx.reply(`✅ Claim(address) completado\nBloque: ${receipt.blockNumber}\nTx: ${tx1.hash}`);
+    } catch (err1) {
+      ctx.reply(`⚠️ claim(address) falló, intentando claim()...\n(${err1.message.split('\n')[0]})`);
+    }
+
+    // Si falla claim(address), intentar claim()
+    try {
+      const cNoArgs = new ethers.Contract(contractAddrLower, ABI_CLAIM_NOARGS, signer);
+      const tx2 = await cNoArgs.claim();
+      ctx.reply(`⏳ Tx enviada (claim()): ${tx2.hash}`);
+      const receipt2 = await tx2.wait();
+      ctx.reply(`✅ Claim() completado\nBloque: ${receipt2.blockNumber}\nTx: ${tx2.hash}`);
+    } catch (err2) {
+      ctx.reply(`❌ No se pudo ejecutar el claim\n${err2.message.split('\n')[0]}`);
+    }
+
+  } catch (e) {
+    ctx.reply(`❌ Error en /claim\n${e.message}`);
+  }
+});
 // ===== Errores y arranque =====
 bot.catch((err) => console.error('Error en CryBot:', err));
 
