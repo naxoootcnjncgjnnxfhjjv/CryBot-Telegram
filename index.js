@@ -4,9 +4,7 @@ const axios = require('axios');
 const { Telegraf } = require('telegraf');
 const { ethers } = require('ethers');
 const cron = require('node-cron');
-/===== Config =====
-const {
-  BOT_TOKEN,
+// ===== Config =====
   ADMIN_TELEGRAM_ID,
   EVM_WALLET,
   TON_WALLET,
