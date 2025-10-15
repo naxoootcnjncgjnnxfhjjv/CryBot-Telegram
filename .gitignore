@@ -1,3 +1,15 @@
+# Environment variables
 .env
+
+# Node modules
 node_modules/
-BOT_TOKEN=7461419771:AAHE-waiJbLCZS2DCbd0mkQB2YVWa8IL2Y8
+
+# Logs and temporary files
+*.log
+coverage/
+
+# Build output
+dist/
+
+# macOS system files
+.DS_Store
