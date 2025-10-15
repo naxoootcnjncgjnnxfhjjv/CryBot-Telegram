@@ -1,19 +1,19 @@
 {
   "name": "crybot-telegram",
   "version": "1.0.0",
-  "description": "Bot de Telegram para vender NFTs, reclamar airdrops y hacer tracking en Ethereum",
-  "main": "index.js",
   "type": "module",
+  "main": "index.js",
+  "engines": { "node": ">=18.17" },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "NODE_ENV=development node index.js"
   },
   "dependencies": {
-    "@opensea/seaport-js": "^2.0.3",
-    "@looksrare/sdk-v2": "^1.0.0",
-    "ethers": "^6.6.0",
-    "telegraf": "^4.12.3",
-    "axios": "^1.5.0",
-    "dotenv": "^16.3.1"
-  },
-  "license": "MIT"
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "telegraf": "^4.16.3"
+  }
 }
