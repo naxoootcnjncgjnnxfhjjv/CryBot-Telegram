@@ -1,10 +1,10 @@
-import 'dotenv/config';
-import express from 'express';
-import axios from 'axios';
-import{ { Telegraf } from 'telegraf';
-import { ethers } from 'ethers';
-import cron from 'node-cron';
-/ ===== Config =====
+require('dotenv').config();
+const express = require('express');
+const axios = require('axios');
+const { Telegraf } = require('telegraf');
+const { ethers } = require('ethers');
+const cron = require('node-cron');
+/===== Config =====
 const {
   BOT_TOKEN,
   ADMIN_TELEGRAM_ID,
