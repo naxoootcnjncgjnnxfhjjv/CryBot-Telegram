@@ -1,20 +1,20 @@
 {
+  "name": "crybot-telegram",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "NODE_ENV=development node index.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "6.7.2",
-    "@fortawesome/fontawesome-svg-core": "6.7.2",
-    "@fortawesome/free-brands-svg-icons": "6.7.2",
-    "@fortawesome/free-regular-svg-icons": "6.7.2",
-    "@fortawesome/free-solid-svg-icons": "6.7.2",
-    "@types/prismjs": "1.26.5",
-    "autoprefixer": "10.4.21",
-    "http-server": "14.1.1",
-    "image-size": "2.0.2",
-    "postcss": "8.5.6",
-    "pptxgenjs": "4.0.0",
-    "prismjs": "1.30.0",
-    "sharp": "0.34.1",
-    "tailwindcss": "4.1.10",
-    "ts-node": "10.9.2",
-    "typescript": "5.8.3"
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "telegraf": "^4.16.3"
   }
 }
