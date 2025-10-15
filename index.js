@@ -4,8 +4,7 @@ import axios from 'axios';
 import{ { Telegraf } from 'telegraf';
 import { ethers } from 'ethers';
 import cron from 'node-cron';
-
-// ===== Config =====
+/ ===== Config =====
 const {
   BOT_TOKEN,
   ADMIN_TELEGRAM_ID,
@@ -173,3 +172,4 @@ bot.launch().then(() => {
 // Cierre limpio
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// minor update
