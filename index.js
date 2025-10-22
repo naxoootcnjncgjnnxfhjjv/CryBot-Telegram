@@ -162,28 +162,122 @@ bot.command('saldo', async (ctx) => {
   });
 });
 
+// ---- Añadir arriba del archivo (imports si no existen) ----
+const axios = require('axios');
+const { ethers } = require('ethers');
+
+// ---- Config / provider ----
+const ETHERSCAN_API = process.env.ETHERSCAN_API_KEY || '';
+const RPC_URL = process.env.RPC_URL || 'https://ethereum.publicnode.com';
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+// ---- Función helper: obtener tokens ERC-20 vía Etherscan ----
+async function fetchErc20Tokens(address) {
+  if (!ETHERSCAN_API) return [];
+  try {
+    const url = `https://api.etherscan.io/api?module=account&action=tokentx&address=${address}&page=1&offset=200&sort=desc&apikey=${ETHERSCAN_API}`;
+    const res = await axios.get(url, { timeout: 15000 });
+    const items = (res.data && res.data.result) || [];
+    const seen = new Map();
+    for (const tx of items) {
+      const c = (tx.contractAddress || '').toLowerCase();
+      if (!c || seen.has(c)) continue;
+      seen.set(c, {
+        contract: c,
+        name: tx.tokenName || 'ERC20',
+        symbol: tx.tokenSymbol || '',
+      });
+    }
+    return Array.from(seen.values());
+  } catch (err) {
+    console.warn('fetchErc20Tokens error:', err.message || err);
+    return [];
+  }
+}
+
+// ---- Función helper: obtener NFTs vía OpenSea (public) ----
+async function fetchOpenSeaNfts(address) {
+  try {
+    // OpenSea v2 endpoint (public read)
+    const url = `https://api.opensea.io/api/v2/chain/ethereum/account/${address}/nfts`;
+    const res = await axios.get(url, { headers: { accept: 'application/json' }, timeout: 15000 });
+    const data = res.data || {};
+    if (!data.nfts) return [];
+    return data.nfts.map(n => ({
+      id: n.tokenId || (n.token_id || '0'),
+      name: n.name || (n.metadata && n.metadata.name) || 'NFT sin nombre',
+      collection: (n.collection && (n.collection.name || n.collection.slug)) || 'Desconocida',
+      marketplace: 'OpenSea'
+    }));
+  } catch (err) {
+    // OpenSea a veces limita; devolvemos vacío si falla
+    console.warn('fetchOpenSeaNfts error:', err.message || err);
+    return [];
+  }
+}
+
+// ---- Función principal: escanear una wallet ----
+async function scanWallet(address) {
+  try {
+    // Balance ETH
+    const balanceWei = await provider.getBalance(address).catch(()=>null);
+    const balanceEth = balanceWei ? Number(ethers.formatEther(balanceWei)).toFixed(6) : '0';
+
+    // Tokens ERC-20 (Etherscan)
+    const tokens = await fetchErc20Tokens(address);
+
+    // NFTs (OpenSea)
+    const nfts = await fetchOpenSeaNfts(address);
+
+    return {
+      address,
+      ethBalance: balanceEth,
+      tokens,
+      nfts
+    };
+  } catch (err) {
+    console.error('scanWallet error:', err);
+    return { address, ethBalance: '0', tokens: [], nfts: [] };
+  }
+}
+
+// ---- Handler /scan (reemplaza el actual) ----
 bot.command('scan', async (ctx) => {
-  if (String(ctx.from.id) !== String(ADMIN_TELEGRAM_ID)) return;
-  await ctx.reply('🔎 Escaneando wallets…');
+  try {
+    await ctx.reply('🔍 Escaneando wallets...');
 
-  // Scan tokens for each EVM wallet
-  const tokenResults = await Promise.all(
-    EVM_WALLETS.map((addr) => evmTokensViaEtherscan(addr))
-  );
-  const totalTokens = tokenResults.reduce((acc, res) => acc + (res.tokens?.length || 0), 0);
-  const notes = tokenResults.map((res) => res.note).join('; ');
+    // Lista de wallets a escanear (usa envs que ya tienes)
+    const wallets = [
+      process.env.EV_WALLET,
+      process.env.MAIN_WALLET,
+      process.env.ADDITIONAL_WALLET // si usas alguna variable extra
+    ].filter(Boolean);
 
-  // Scan airdrops for each TON wallet
-  const airdropsResults = await Promise.all(
-    TON_WALLETS.map((addr) => tonScanAirdrops(addr))
-  );
-  const totalAirdrops = airdropsResults.reduce((acc, arr) => acc + arr.length, 0);
+    if (wallets.length === 0) {
+      await ctx.reply('⚠️ No hay wallets configuradas en variables de entorno (EV_WALLET / MAIN_WALLET).');
+      return;
+    }
 
-  await ctx.reply(
-    `✅ Escaneo listo.\n` +
-      `• ERC-20 (EVM): ${totalTokens} (nota: ${notes})\n` +
-      `• Airdrops TON: ${totalAirdrops}`
-  );
+    let out = '✅ Escaneo completo:\n\n';
+    for (const w of wallets) {
+      const data = await scanWallet(w);
+      out += `💼 ${w}\n`;
+      out += `• Balance: ${data.ethBalance} ETH\n`;
+      out += `• Tokens ERC-20: ${data.tokens.length > 0 ? data.tokens.map(t => (t.symbol || t.name)).join(', ') : '—'}\n`;
+      out += `• NFTs detectados: ${data.nfts.length}\n`;
+      if (data.nfts.length > 0) {
+        // muestra hasta 5 ejemplos útiles
+        const sample = data.nfts.slice(0,5).map(n => `  - ${n.collection} #${n.id} (${n.name})`).join('\n');
+        out += sample + '\n';
+      }
+      out += '\n';
+    }
+
+    await ctx.reply(out.trim());
+  } catch (err) {
+    console.error('Error en /scan:', err);
+    await ctx.reply('❌ Error al ejecutar el scan. Revisa logs en Railway.');
+  }
 });
 
 bot.command('reclamar', async (ctx) => {
