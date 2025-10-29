@@ -4,7 +4,7 @@
   "type": "module",
   "main": "index.js",
   "engines": { "node": ">=18.17" },
-commonjs    "start": "node index.js",
+commonjs    "start": "node index_multi.js",
     "dev": "NODE_ENV=development node index.js"
   },
   "dependencies": {
