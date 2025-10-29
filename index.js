@@ -187,3 +187,25 @@ app.get('/', (req, res) => {
 
 // Export the Express app for deployment (e.g., Vercel/Railway)
 module.exports = app;
+
+
+// Start bot and HTTP server when run directly
+if (require.main === module) {
+  bot.launch().then(() => {
+    console.log('Bot de Telegram iniciado correctamente.');
+  }).catch(err => {
+    console.error('Error al iniciar el bot:', err);
+  });
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log('Server listening on port ' + PORT);
+  });
+  process.once('SIGINT', () => {
+    console.log('SIGINT recibido, deteniendo bot.');
+    bot.stop('SIGINT');
+  });
+  process.once('SIGTERM', () => {
+    console.log('SIGTERM recibido, deteniendo bot.');
+    bot.stop('SIGTERM');
+  });
+}
