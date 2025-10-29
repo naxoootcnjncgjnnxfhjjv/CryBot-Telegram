@@ -1,13 +1,11 @@
 {
   "name": "crybot-telegram",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
+  "engines": { "node": ">=18.17" },
+commonjs    "start": "node index_multi.js",
     "dev": "NODE_ENV=development node index.js"
-  },
-  "engines": {
-    "node": ">=18.17"
   },
   "dependencies": {
     "axios": "^1.7.7",
@@ -15,7 +13,6 @@
     "ethers": "^6.13.2",
     "express": "^4.19.2",
     "node-cron": "^3.0.3",
-    "telegraf": "^4.16.3",
-    "node-fetch": "^3.3.2"
+    "telegraf": "^4.16.3"
   }
 }

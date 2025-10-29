@@ -13,3 +13,67 @@ dist/
 
 # macOS system files
 .DS_Store
+# === CryBot-Telegram ===
+# Ignorar dependencias de Node
+node_modules/
+
+# Archivos de entorno con tokens o claves
+.env
+.env.*
+*.env
+
+# Archivos de log
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de compilación o temporales
+dist/
+build/
+.tmp/
+cache/
+*.tmp
+
+# Configuración del sistema
+.DS_Store
+Thumbs.db
+
+# Configuración del editor
+.vscode/
+.idea/
+
+# Archivos de producción Railway / Vercel
+.vercel/
+.railway/
+*.sqlite
+*.db
+
+# Backup o pruebas locales
+test/
+backup/
+*.bak
+
+# Ignorar lockfiles si usas varios gestores
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+{
+  "name": "crybot-listing",
+  "version": "1.0.0",
+  "description": "CryBot module for listing Planet IX NFTs on OpenSea (Polygon)",
+  "main": "prepare_and_send_listing.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node prepare_and_send_listing.js"
+  },
+  "dependencies": {
+    "@opensea/seaport-js": "^1.7.2",
+    "axios": "^1.7.5",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.1"
+  },
+  "author": "CryBot System",
+  "license": "MIT"
+}
