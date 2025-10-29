@@ -1,3 +1,18 @@
+# Environment variables
+.env
+
+# Node modules
+node_modules/
+
+# Logs and temporary files
+*.log
+coverage/
+
+# Build output
+dist/
+
+# macOS system files
+.DS_Store
 # === CryBot-Telegram ===
 # Ignorar dependencias de Node
 node_modules/

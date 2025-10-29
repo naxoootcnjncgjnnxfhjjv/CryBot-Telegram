@@ -1,211 +1,237 @@
-// Load environment variables from .env file if the dotenv module is available.
-try {
-  require('dotenv').config();
-} catch (e) {
-  // If dotenv is not installed, environment variables will still be read from process.env.
-}
-const express = require('express');
 const { Telegraf } = require('telegraf');
-// Import verifyTonContract if available; stub if not present.
-let verifyTonContract;
-try {
-  verifyTonContract = require('./verifyTonContract');
-} catch (e) {
-  verifyTonContract = async () => ({ verified: false, codeHash: null });
+const axios = require('axios');
+const { ethers } = require('ethers');
+const cron = require('node-cron');
+const { loadConfig } = require('./config');
+
+// Load configuration from environment and .env file
+const config = loadConfig();
+
+// Initialise provider and wallet for EVM network
+const provider = new ethers.JsonRpcProvider(config.rpcUrl);
+let wallet = null;
+if (config.privateKey) {
+  try {
+    wallet = new ethers.Wallet(config.privateKey, provider);
+  } catch (err) {
+    console.error('❌ PRIVATE_KEY inválida:', err.message);
+  }
 }
 
-// Map environment variables for compatibility with Railway
-process.env.EVM_ADDRESS = process.env.EVM_ADDRESS || process.env.EVM_WALLET;
-process.env.TON_ADDRESS = process.env.TON_ADDRESS || process.env.TON_WALLET;
-process.env.PRINCIPAL_ADDRESS = process.env.PRINCIPAL_ADDRESS || process.env.MAIN_WALLET;
-process.env.TONCENTER_API_KEY = process.env.TONCENTER_API_KEY || process.env.TON_API_KEY;
+// Create bot instance
+const bot = new Telegraf(config.botToken);
 
-// Use node-fetch for Node versions < 18; in Node 18+ fetch is built-in.
-const fetch = (...args) =>
-  import('node-fetch').then(({ default: fetch }) => fetch(...args));
+// Helper to check if a chat user is the administrator
+const isAdmin = (ctx) => {
+  return String(ctx.from?.id) === String(config.adminId);
+};
 
-const app = express();
-const bot = new Telegraf(process.env.BOT_TOKEN);
-
-// Middleware for JSON payloads
-app.use(express.json());
-
-// Telegram webhook endpoint
-app.post('/bot', (req, res) => {
-  bot.handleUpdate(req.body, res);
-});
-
-/*
- * Helper functions
- * In production you should implement these functions using real APIs (Etherscan, Covalent, etc.).
- * The stubs below return static values to mirror the example conversation shown by the user.  Replace them
- * with real implementations to fetch actual token balances, airdrops and NFT listings.
+/**
+ * Scan an EVM address and return its Ether balance
+ * @param {string|null} addr - Address to scan
+ * @returns {Promise<{address: string, eth?: number, error?: string}>}
  */
-async function getEvmBalance(address) {
-  // TODO: Use an API like Etherscan to fetch the ETH balance of the address.
-  // Returning 0 ETH by default.
-  return '0';
+async function scanEvm(addr) {
+  if (!addr) return null;
+  try {
+    const bal = await provider.getBalance(addr);
+    return {
+      address: addr,
+      eth: Number(ethers.formatEther(bal)),
+    };
+  } catch (err) {
+    console.error('scanEvm error:', err.message);
+    return { address: addr, error: err.message };
+  }
 }
 
-async function getTonBalance(address) {
-  // Call toncenter API to fetch TON balance
-  const apiKey = process.env.TONCENTER_API_KEY
-    ? `&api_key=${process.env.TONCENTER_API_KEY}`
-    : '';
-  const url = `https://toncenter.com/api/v2/getExtendedAddressInformation?address=${encodeURIComponent(
-    address,
-  )}${apiKey}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'TON API error');
-  const balanceTon = parseFloat(data.result.balance) / 1e9;
-  return balanceTon.toFixed(6);
+/**
+ * Scan a TON address and return its balance using the TON API
+ * Requires a valid TON API key in config.tonApiKey
+ * @param {string|null} addr - TON address to scan
+ * @returns {Promise<{address: string, ton?: number, error?: string, note?: string}>}
+ */
+async function scanTon(addr) {
+  if (!addr) return null;
+  if (!config.tonApiKey) {
+    console.warn('⚠️ TON API key not configured');
+    return { address: addr, ton: null, error: 'Missing TON API key' };
+  }
+  try {
+    const url = `https://tonapi.io/v2/wallet/info?account=${encodeURIComponent(addr)}`;
+    const headers = {
+      'x-api-key': config.tonApiKey,
+      Accept: 'application/json',
+    };
+    const res = await axios.get(url, { headers, timeout: 10000 });
+    const data = res.data || {};
+    // Many TON APIs return balances in nanoTON (1e9 per TON)
+    if (data.balance) {
+      const balanceNano = Number(data.balance);
+      return { address: addr, ton: balanceNano / 1e9 };
+    }
+    if (data.account && data.account.balance) {
+      const balanceNano = Number(data.account.balance);
+      return { address: addr, ton: balanceNano / 1e9 };
+    }
+    return { address: addr, ton: null, note: 'Balance not found' };
+  } catch (err) {
+    console.error('scanTon error for', addr, err.message || err);
+    return { address: addr, error: err.message || String(err) };
+  }
 }
 
-async function getErc20Tokens(address) {
-  // TODO: Use an ERC‑20 indexing service (e.g., Covalent, Moralis) to fetch token holdings.
-  return 0;
+/**
+ * Claim airdrops for all configured wallets
+ * This function is a skeleton; integrate your contract/API logic where indicated.
+ * @returns {Promise<{claimed: Array}>}
+ */
+async function claimAirdropsForAll() {
+  const results = [];
+  const wallets = [];
+  if (Array.isArray(config.wallets?.evm)) {
+    config.wallets.evm.forEach((addr) => {
+      wallets.push({ address: addr, type: 'evm' });
+    });
+  }
+  if (Array.isArray(config.wallets?.ton)) {
+    config.wallets.ton.forEach((addr) => {
+      wallets.push({ address: addr, type: 'ton' });
+    });
+  }
+  // Additional networks (e.g., aptos) can be added here
+  for (const w of wallets) {
+    try {
+      if (w.type === 'evm') {
+        // TODO: Integrate EVM airdrop claim logic here using ethers.js and appropriate contracts
+        results.push({ address: w.address, network: 'evm', claimed: false, note: 'Integrate EVM claim logic' });
+      } else if (w.type === 'ton') {
+        // TODO: Integrate TON airdrop claim logic here using TON APIs or contracts
+        results.push({ address: w.address, network: 'ton', claimed: false, note: 'Integrate TON claim logic' });
+      } else {
+        results.push({ address: w.address, claimed: false, error: 'Unknown wallet type' });
+      }
+    } catch (err) {
+      results.push({ address: w.address, claimed: false, error: err.message || String(err) });
+    }
+  }
+  return { claimed: results };
 }
 
-async function getTonAirdrops(address) {
-  // TODO: Query airdrop services or check for unclaimed TON airdrops.
-  return 0;
-}
+// ===== Telegram bot commands =====
+bot.start((ctx) => ctx.reply('Hola, CryBot activo. Usa /help'));
 
-// /start command
-bot.start((ctx) => {
-  const message =
-    '🤖 Bot automático para escaneo de wallets, reclamo de recompensas, venta de NFTs y transferencias.\n\n' +
-    '✅ CryBot activo.\n' +
-    'Usa /saldo, /scan, /reclamar, /vender, /enviar, /verificar';
-  return ctx.reply(message);
+bot.command('help', (ctx) => {
+  ctx.reply([
+    '/status — test de vida',
+    '/saldo — ver balances EVM / TON',
+    '/reclamar — ejecutar airdrops (solo admin)',
+    '/enviar <amountETH> <to> — enviar ETH (solo admin)',
+  ].join('\n'));
 });
 
-// /saldo command
+bot.command('status', (ctx) => {
+  ctx.reply('OK');
+});
+
 bot.command('saldo', async (ctx) => {
-  const evmAddr = process.env.EVM_ADDRESS;
-  const tonAddr = process.env.TON_ADDRESS;
-  if (!evmAddr || !tonAddr) {
-    return ctx.reply(
-      '⚠️ No se ha configurado la dirección EVM o TON. Establece EVM_ADDRESS y TON_ADDRESS en el entorno.',
-    );
-  }
-  await ctx.reply('⏳ Consultando saldos...');
-  try {
-    const [ethBal, tonBal] = await Promise.all([
-      getEvmBalance(evmAddr),
-      getTonBalance(tonAddr),
-    ]);
-    let reply = '💰 Saldos\n';
-    reply += `• EVM\n(${evmAddr}): ${ethBal} ETH\n`;
-    reply += `• TON\n(${tonAddr}): ${tonBal} TON`;
-    if (process.env.PRINCIPAL_ADDRESS) {
-      reply += `\n→ Principal:\n${process.env.PRINCIPAL_ADDRESS}`;
-    }
-    return ctx.reply(reply);
-  } catch (err) {
-    console.error(err);
-    return ctx.reply('Error al obtener saldos.');
-  }
+  // Use the first configured EVM wallet or default wallet
+  const evmAddr = config.wallets?.evm?.[0] || config.wallets?.main || config.defaultEth;
+  const tonAddr = config.wallets?.ton?.[0] || null;
+  const evm = await scanEvm(evmAddr);
+  const ton = await scanTon(tonAddr);
+  ctx.reply(`Balances:\nEVM: ${JSON.stringify(evm)}\nTON: ${JSON.stringify(ton)}`);
 });
 
-// /scan command
-bot.command('scan', async (ctx) => {
-  const evmAddr = process.env.EVM_ADDRESS;
-  const tonAddr = process.env.TON_ADDRESS;
-  if (!evmAddr || !tonAddr) {
-    return ctx.reply(
-      '⚠️ No se ha configurado la dirección EVM o TON. Establece EVM_ADDRESS y TON_ADDRESS en el entorno.',
-    );
-  }
-  await ctx.reply('🔍 Escaneando wallets...');
-  try {
-    const [erc20Count, airdropsCount] = await Promise.all([
-      getErc20Tokens(evmAddr),
-      getTonAirdrops(tonAddr),
-    ]);
-    let reply = '✅ Escaneo listo.\n';
-    reply += `• ERC‑20 (EVM): ${erc20Count} (nota: Para tokens ERC‑20 usaré fuente indexada en la siguiente iteración.)\n`;
-    reply += `• Airdrops TON: ${airdropsCount}`;
-    return ctx.reply(reply);
-  } catch (err) {
-    console.error(err);
-    return ctx.reply('Error en el escaneo.');
-  }
-});
-
-// /reclamar command
 bot.command('reclamar', async (ctx) => {
-  await ctx.reply('🎁 Buscando y reclamando airdrops...');
-  // In a real implementation, this would initiate claim transactions via TON Connect.
-  const totalClaimed = 0;
-  return ctx.reply(`✅ Reclamación finalizada. Total: ${totalClaimed}. Protocolos: —`);
-});
-
-// /vender command
-bot.command('vender', async (ctx) => {
-  await ctx.reply('🛒 Listando NFTs automáticamente (requiere firma)...');
-  // In a real implementation, fetch NFTs and prepare sale; signature needed via TON Connect.
-  const listed = 0;
-  return ctx.reply(
-    `✅ NFTs listados: ${listed}. Nota: Se requiere firma. Dejamos hook preparado.`,
-  );
-});
-
-// /verificar command
-bot.command('verificar', async (ctx) => {
-  const [, address] = ctx.message.text.split(' ');
-  if (!address) {
-    return ctx.reply('Usa /verificar <direccion_wallet>');
+  if (!isAdmin(ctx)) {
+    return ctx.reply('❌ No autorizado');
   }
   try {
-    const result = await verifyTonContract(address);
-    if (result.verified) {
-      return ctx.reply(`✅ El contrato está verificado. Hash: ${result.codeHash}`);
-    }
-    if (result.codeHash) {
-      return ctx.reply(
-        `⚠️ El contrato no está verificado. Hash calculado: ${result.codeHash}`,
+    const res = await claimAirdropsForAll();
+    ctx.reply(`✅ Reclamos: ${JSON.stringify(res)}`);
+  } catch (err) {
+    console.error('Error en /reclamar:', err.message || err);
+    ctx.reply(`❌ Error en reclamar: ${err.message || err}`);
+  }
+});
+
+bot.command('enviar', async (ctx) => {
+  if (!isAdmin(ctx)) {
+    return ctx.reply('❌ No autorizado');
+  }
+  if (!wallet) {
+    return ctx.reply('❌ No hay clave privada disponible');
+  }
+  const parts = ctx.message.text.trim().split(/\s+/);
+  if (parts.length < 3) {
+    return ctx.reply('Uso: /enviar <amountETH> <to>');
+  }
+  const amountStr = parts[1];
+  const to = parts[2];
+  if (!ethers.isAddress(to)) {
+    return ctx.reply('Dirección inválida. Debe ser una dirección EVM válida.');
+  }
+  const amount = Number(amountStr);
+  if (!isFinite(amount) || amount <= 0) {
+    return ctx.reply('Cantidad inválida. Debe ser un número positivo.');
+  }
+  try {
+    const value = ethers.parseEther(String(amount));
+    const tx = await wallet.sendTransaction({ to, value });
+    ctx.reply(`✅ Enviando: ${tx.hash}`);
+  } catch (err) {
+    console.error('Error en /enviar:', err.message || err);
+    ctx.reply(`❌ Error al enviar: ${err.message || err}`);
+  }
+});
+
+// ===== Scheduled tasks =====
+// Automatic scan every 5 minutes
+setInterval(async () => {
+  try {
+    const evmAddr = config.wallets?.evm?.[0] || config.wallets?.main || config.defaultEth;
+    const tonAddr = config.wallets?.ton?.[0] || null;
+    const evm = await scanEvm(evmAddr);
+    const ton = await scanTon(tonAddr);
+    if (config.adminId) {
+      await bot.telegram.sendMessage(
+        config.adminId,
+        `Scan automático:\nEVM: ${JSON.stringify(evm)}\nTON: ${JSON.stringify(ton)}`,
       );
     }
-    return ctx.reply('⚠️ La cuenta no tiene código (¿quizá no está desplegada?).');
   } catch (err) {
-    console.error(err);
-    return ctx.reply('Error al verificar el contrato.');
+    console.error('Error en escaneo periódico:', err.message || err);
+  }
+}, 5 * 60 * 1000);
+
+// Daily report at 09:00
+cron.schedule('0 9 * * *', async () => {
+  try {
+    const evmAddr = config.wallets?.evm?.[0] || config.wallets?.main || config.defaultEth;
+    const tonAddr = config.wallets?.ton?.[0] || null;
+    const evm = await scanEvm(evmAddr);
+    const ton = await scanTon(tonAddr);
+    if (config.adminId) {
+      await bot.telegram.sendMessage(
+        config.adminId,
+        `Reporte diario:\nEVM: ${JSON.stringify(evm)}\nTON: ${JSON.stringify(ton)}`,
+      );
+    }
+  } catch (err) {
+    console.error('Error en reporte diario:', err.message || err);
   }
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', backend: 'crybot', timestamp: Date.now() });
-});
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.send('CryBot Backend running ✅');
-});
-
-// Export the Express app for deployment (e.g., Vercel/Railway)
-module.exports = app;
-
-
-// Start bot and HTTP server when run directly
-if (require.main === module) {
-  bot.launch().then(() => {
-    console.log('Bot de Telegram iniciado correctamente.');
-  }).catch(err => {
-    console.error('Error al iniciar el bot:', err);
+// ===== Launch the bot =====
+bot.launch()
+  .then(() => console.log('✅ Bot lanzado (polling)'))
+  .catch((err) => {
+    console.error('❌ Error al lanzar bot:', err.message || err);
+    process.exit(1);
   });
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log('Server listening on port ' + PORT);
-  });
-  process.once('SIGINT', () => {
-    console.log('SIGINT recibido, deteniendo bot.');
-    bot.stop('SIGINT');
-  });
-  process.once('SIGTERM', () => {
-    console.log('SIGTERM recibido, deteniendo bot.');
-    bot.stop('SIGTERM');
-  });
-}
+
+// Keep the process alive
+process.stdin.resume();
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
