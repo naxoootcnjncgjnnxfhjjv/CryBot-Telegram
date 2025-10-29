@@ -2,7 +2,7 @@ name: CI & Deploy to Railway
 
 on:
   push:
-    branches: [ main ]   # tu rama se llama "main" según las capturas
+    branches: [ Principal ]   # tu rama se llama "main" según las capturas
 
 jobs:
   ci:
