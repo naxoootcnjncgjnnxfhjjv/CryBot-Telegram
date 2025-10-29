@@ -14,6 +14,12 @@ try {
   verifyTonContract = async () => ({ verified: false, codeHash: null });
 }
 
+// Map environment variables for compatibility with Railway
+process.env.EVM_ADDRESS = process.env.EVM_ADDRESS || process.env.EVM_WALLET;
+process.env.TON_ADDRESS = process.env.TON_ADDRESS || process.env.TON_WALLET;
+process.env.PRINCIPAL_ADDRESS = process.env.PRINCIPAL_ADDRESS || process.env.MAIN_WALLET;
+process.env.TONCENTER_API_KEY = process.env.TONCENTER_API_KEY || process.env.TON_API_KEY;
+
 // Use node-fetch for Node versions < 18; in Node 18+ fetch is built-in.
 const fetch = (...args) =>
   import('node-fetch').then(({ default: fetch }) => fetch(...args));
