@@ -121,17 +121,23 @@ bot.command("help", (ctx) =>
 );
 
 bot.command("status", (ctx) => ctx.reply("✅ OK, bot activo."));
-
 bot.command("saldo", async (ctx) => {
-  const evmAddr = config.wallets?.evm?.[0];
-  const tonAddr = config.wallets?.ton?.[0];
-  const evm = await scanEvm(evmAddr);
-  const ton = await scanTon(tonAddr);
-  ctx.reply(
-    `💰 *Balances detectados:*\nEVM (${evmAddr}): ${evm.eth || 0} ETH\nTON (${tonAddr}): ${ton.ton || 0} TON`,
-    { parse_mode: "Markdown" }
-  );
+  const evmAddrs = config.wallets?.evm || [];
+  const tonAddrs = config.wallets?.ton || [];
+  let message = "\uD83D\uDCE6 Saldos\n";
+  for (const addr of evmAddrs) {
+    const evm = await scanEvm(addr);
+    message += `\u2022 EVM (${addr}): ${evm?.eth || 0} ETH\n`;
+  }
+  for (const addr of tonAddrs) {
+    const ton = await scanTon(addr);
+    message += `\u2022 TON (${addr}): ${ton?.ton || 0} TON\n`;
+  }
+  message += `\u2192 Principal: ${config.wallets?.main}`;
+  ctx.reply(message);
 });
+
+
 
 bot.command("reclamar", async (ctx) => {
   if (!isAdmin(ctx)) return ctx.reply("❌ No autorizado");
