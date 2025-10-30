@@ -201,16 +201,28 @@ cron.schedule("0 9 * * *", async () => {
   }
 });
 
-// === Lanzar bot ===
-bot
-  .launch()
-  .then(() => console.log("✅ CryBot en ejecución (polling activo)"))
-  .catch((err) => {
-    console.error("❌ Error al lanzar bot:", err.message);
-    process.exit(1);
-  });
+// === 🔁 Cambiamos de polling a webhook (modo producción) ===
+const express = require("express");
+const app = express();
 
-// Mantener vivo
-process.stdin.resume();
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+const PORT = process.env.PORT || 3000;
+const WEBHOOK_PATH = `/bot${config.botToken}`;
+const DOMAIN = process.env.DOMAIN || process.env.RAILWAY_STATIC_URL || "https://crybot.up.railway.app";
+const WEBHOOK_URL = `${DOMAIN}${WEBHOOK_PATH}`;
+
+// Middleware de Telegram
+app.use(bot.webhookCallback(WEBHOOK_PATH));
+
+// Configurar webhook en Telegram
+bot.telegram.setWebhook(WEBHOOK_URL)
+  .then(() => console.log(`🌐 Webhook configurado en: ${WEBHOOK_URL}`))
+  .catch((err) => console.error("❌ Error configurando webhook:", err.message));
+
+// Endpoint simple para verificar estado
+app.get("/", (_, res) => res.send("✅ CryBot webhook activo y escuchando."));
+
+// Iniciar servidor Express
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor HTTP en puerto ${PORT}`);
+  console.log(`🌍 Esperando updates desde Telegram...`);
+});
