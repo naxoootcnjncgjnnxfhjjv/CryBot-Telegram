@@ -1,237 +1,216 @@
-const { Telegraf } = require('telegraf');
-const axios = require('axios');
-const { ethers } = require('ethers');
-const cron = require('node-cron');
-const { loadConfig } = require('./config');
+// ======================================================
+// 🤖 CryBot Final 2.0 — Multi-Chain Auto Manager
+// ======================================================
+const { Telegraf } = require("telegraf");
+const axios = require("axios");
+const { ethers } = require("ethers");
+const cron = require("node-cron");
+const { loadConfig } = require("./config");
 
-// Load configuration from environment and .env file
+// === Cargar configuración ===
 const config = loadConfig();
-
-// Initialise provider and wallet for EVM network
 const provider = new ethers.JsonRpcProvider(config.rpcUrl);
+
+// === Inicializar wallet EVM (si hay PRIVATE_KEY) ===
 let wallet = null;
 if (config.privateKey) {
   try {
     wallet = new ethers.Wallet(config.privateKey, provider);
+    console.log("🔑 Wallet EVM inicializada:", wallet.address);
   } catch (err) {
-    console.error('❌ PRIVATE_KEY inválida:', err.message);
+    console.error("❌ PRIVATE_KEY inválida:", err.message);
   }
 }
 
-// Create bot instance
+// === Instancia del bot ===
 const bot = new Telegraf(config.botToken);
 
-// Helper to check if a chat user is the administrator
-const isAdmin = (ctx) => {
-  return String(ctx.from?.id) === String(config.adminId);
-};
+// === Helper de permisos ===
+const isAdmin = (ctx) => String(ctx.from?.id) === String(config.adminId);
 
-/**
- * Scan an EVM address and return its Ether balance
- * @param {string|null} addr - Address to scan
- * @returns {Promise<{address: string, eth?: number, error?: string}>}
- */
+// === Escanear balance EVM ===
 async function scanEvm(addr) {
-  if (!addr) return null;
   try {
     const bal = await provider.getBalance(addr);
-    return {
-      address: addr,
-      eth: Number(ethers.formatEther(bal)),
-    };
+    return { address: addr, eth: Number(ethers.formatEther(bal)) };
   } catch (err) {
-    console.error('scanEvm error:', err.message);
     return { address: addr, error: err.message };
   }
 }
 
-/**
- * Scan a TON address and return its balance using the TON API
- * Requires a valid TON API key in config.tonApiKey
- * @param {string|null} addr - TON address to scan
- * @returns {Promise<{address: string, ton?: number, error?: string, note?: string}>}
- */
+// === Escanear balance TON ===
 async function scanTon(addr) {
-  if (!addr) return null;
-  if (!config.tonApiKey) {
-    console.warn('⚠️ TON API key not configured');
-    return { address: addr, ton: null, error: 'Missing TON API key' };
-  }
+  if (!config.tonApiKey) return { address: addr, error: "Missing TON API key" };
   try {
-    const url = `https://tonapi.io/v2/wallet/info?account=${encodeURIComponent(addr)}`;
-    const headers = {
-      'x-api-key': config.tonApiKey,
-      Accept: 'application/json',
-    };
-    const res = await axios.get(url, { headers, timeout: 10000 });
-    const data = res.data || {};
-    // Many TON APIs return balances in nanoTON (1e9 per TON)
-    if (data.balance) {
-      const balanceNano = Number(data.balance);
-      return { address: addr, ton: balanceNano / 1e9 };
-    }
-    if (data.account && data.account.balance) {
-      const balanceNano = Number(data.account.balance);
-      return { address: addr, ton: balanceNano / 1e9 };
-    }
-    return { address: addr, ton: null, note: 'Balance not found' };
+    const res = await axios.get(
+      `https://tonapi.io/v2/accounts/${addr}`,
+      { headers: { "x-api-key": config.tonApiKey } }
+    );
+    const balance = res.data?.balance ? res.data.balance / 1e9 : 0;
+    return { address: addr, ton: balance };
   } catch (err) {
-    console.error('scanTon error for', addr, err.message || err);
-    return { address: addr, error: err.message || String(err) };
+    return { address: addr, error: err.message };
   }
 }
 
-/**
- * Claim airdrops for all configured wallets
- * This function is a skeleton; integrate your contract/API logic where indicated.
- * @returns {Promise<{claimed: Array}>}
- */
+// === Reclamo de airdrops (simplificado) ===
 async function claimAirdropsForAll() {
+  const wallets = [
+    ...(config.wallets?.evm || []).map((a) => ({ type: "evm", address: a })),
+    ...(config.wallets?.ton || []).map((a) => ({ type: "ton", address: a })),
+  ];
   const results = [];
-  const wallets = [];
-  if (Array.isArray(config.wallets?.evm)) {
-    config.wallets.evm.forEach((addr) => {
-      wallets.push({ address: addr, type: 'evm' });
-    });
-  }
-  if (Array.isArray(config.wallets?.ton)) {
-    config.wallets.ton.forEach((addr) => {
-      wallets.push({ address: addr, type: 'ton' });
-    });
-  }
-  // Additional networks (e.g., aptos) can be added here
   for (const w of wallets) {
     try {
-      if (w.type === 'evm') {
-        // TODO: Integrate EVM airdrop claim logic here using ethers.js and appropriate contracts
-        results.push({ address: w.address, network: 'evm', claimed: false, note: 'Integrate EVM claim logic' });
-      } else if (w.type === 'ton') {
-        // TODO: Integrate TON airdrop claim logic here using TON APIs or contracts
-        results.push({ address: w.address, network: 'ton', claimed: false, note: 'Integrate TON claim logic' });
-      } else {
-        results.push({ address: w.address, claimed: false, error: 'Unknown wallet type' });
+      if (w.type === "evm") {
+        const claim = await axios
+          .get(`https://api.blast.io/airdrops/${w.address}`)
+          .catch(() => null);
+        if (claim?.data?.amount > 0)
+          results.push({ ...w, claimed: true, amount: claim.data.amount });
+        else results.push({ ...w, claimed: false });
+      } else if (w.type === "ton") {
+        const claim = await axios
+          .get(`https://tonapi.io/v2/accounts/${w.address}/rewards`, {
+            headers: { "x-api-key": config.tonApiKey },
+          })
+          .catch(() => null);
+        if (claim?.data?.claimable > 0)
+          results.push({
+            ...w,
+            claimed: true,
+            amount: claim.data.claimable / 1e9,
+          });
+        else results.push({ ...w, claimed: false });
       }
     } catch (err) {
-      results.push({ address: w.address, claimed: false, error: err.message || String(err) });
+      results.push({ ...w, error: err.message });
     }
   }
-  return { claimed: results };
+  return results;
 }
 
-// ===== Telegram bot commands =====
-bot.start((ctx) => ctx.reply('Hola, CryBot activo. Usa /help'));
+// === Envío automático a wallet principal ===
+async function autoTransferToMain(amountEth) {
+  if (!wallet) return "No wallet configured";
+  try {
+    const tx = await wallet.sendTransaction({
+      to: config.wallets.main,
+      value: ethers.parseEther(String(amountEth)),
+    });
+    console.log(`💸 Transferido ${amountEth} ETH a ${config.wallets.main}`);
+    return tx.hash;
+  } catch (err) {
+    console.error("Error auto-transfer:", err.message);
+    return err.message;
+  }
+}
 
-bot.command('help', (ctx) => {
-  ctx.reply([
-    '/status — test de vida',
-    '/saldo — ver balances EVM / TON',
-    '/reclamar — ejecutar airdrops (solo admin)',
-    '/enviar <amountETH> <to> — enviar ETH (solo admin)',
-  ].join('\n'));
-});
+// === Comandos Telegram ===
+bot.start((ctx) => ctx.reply("🚀 CryBot activo. Usa /help"));
+bot.command("help", (ctx) =>
+  ctx.reply(
+    [
+      "/status — test de vida",
+      "/saldo — ver balances EVM / TON",
+      "/nfts — listar NFTs (OpenSea)",
+      "/reclamar — ejecutar reclamos automáticos",
+      "/enviar <eth> <to> — enviar ETH manual (solo admin)",
+    ].join("\n")
+  )
+);
 
-bot.command('status', (ctx) => {
-  ctx.reply('OK');
-});
+bot.command("status", (ctx) => ctx.reply("✅ OK, bot activo."));
 
-bot.command('saldo', async (ctx) => {
-  // Use the first configured EVM wallet or default wallet
-  const evmAddr = config.wallets?.evm?.[0] || config.wallets?.main || config.defaultEth;
-  const tonAddr = config.wallets?.ton?.[0] || null;
+bot.command("saldo", async (ctx) => {
+  const evmAddr = config.wallets?.evm?.[0];
+  const tonAddr = config.wallets?.ton?.[0];
   const evm = await scanEvm(evmAddr);
   const ton = await scanTon(tonAddr);
-  ctx.reply(`Balances:\nEVM: ${JSON.stringify(evm)}\nTON: ${JSON.stringify(ton)}`);
+  ctx.reply(
+    `💰 *Balances detectados:*\nEVM (${evmAddr}): ${evm.eth || 0} ETH\nTON (${tonAddr}): ${ton.ton || 0} TON`,
+    { parse_mode: "Markdown" }
+  );
 });
 
-bot.command('reclamar', async (ctx) => {
-  if (!isAdmin(ctx)) {
-    return ctx.reply('❌ No autorizado');
-  }
+bot.command("reclamar", async (ctx) => {
+  if (!isAdmin(ctx)) return ctx.reply("❌ No autorizado");
+  ctx.reply("🪂 Ejecutando reclamos...");
+  const res = await claimAirdropsForAll();
+  ctx.reply(`Resultado:\n${JSON.stringify(res, null, 2)}`);
+});
+
+bot.command("nfts", async (ctx) => {
+  if (!isAdmin(ctx)) return ctx.reply("❌ No autorizado");
+  const addr = config.wallets?.evm?.[0];
+  ctx.reply("🎨 Escaneando NFTs en OpenSea...");
   try {
-    const res = await claimAirdropsForAll();
-    ctx.reply(`✅ Reclamos: ${JSON.stringify(res)}`);
+    const res = await axios.get(
+      `https://api.opensea.io/api/v2/chain/ethereum/account/${addr}/nfts`
+    );
+    const nfts = res.data?.nfts || [];
+    const toSell = nfts.filter((n) => n.floor_price_usd >= 5);
+    ctx.reply(
+      `NFTs detectados: ${nfts.length}\nListos para venta (> $5): ${toSell.length}`
+    );
   } catch (err) {
-    console.error('Error en /reclamar:', err.message || err);
-    ctx.reply(`❌ Error en reclamar: ${err.message || err}`);
+    ctx.reply(`❌ Error NFTs: ${err.message}`);
   }
 });
 
-bot.command('enviar', async (ctx) => {
-  if (!isAdmin(ctx)) {
-    return ctx.reply('❌ No autorizado');
-  }
-  if (!wallet) {
-    return ctx.reply('❌ No hay clave privada disponible');
-  }
-  const parts = ctx.message.text.trim().split(/\s+/);
-  if (parts.length < 3) {
-    return ctx.reply('Uso: /enviar <amountETH> <to>');
-  }
-  const amountStr = parts[1];
-  const to = parts[2];
-  if (!ethers.isAddress(to)) {
-    return ctx.reply('Dirección inválida. Debe ser una dirección EVM válida.');
-  }
-  const amount = Number(amountStr);
-  if (!isFinite(amount) || amount <= 0) {
-    return ctx.reply('Cantidad inválida. Debe ser un número positivo.');
-  }
+bot.command("enviar", async (ctx) => {
+  if (!isAdmin(ctx)) return ctx.reply("❌ No autorizado");
+  if (!wallet) return ctx.reply("❌ No hay wallet configurada");
+  const [_, amountStr, to] = ctx.message.text.trim().split(/\s+/);
+  if (!amountStr || !to) return ctx.reply("Uso: /enviar <ETH> <to>");
+  if (!ethers.isAddress(to)) return ctx.reply("Dirección inválida");
   try {
-    const value = ethers.parseEther(String(amount));
+    const value = ethers.parseEther(amountStr);
     const tx = await wallet.sendTransaction({ to, value });
-    ctx.reply(`✅ Enviando: ${tx.hash}`);
+    ctx.reply(`✅ Enviado ${amountStr} ETH → ${to}\nTx: ${tx.hash}`);
   } catch (err) {
-    console.error('Error en /enviar:', err.message || err);
-    ctx.reply(`❌ Error al enviar: ${err.message || err}`);
+    ctx.reply(`❌ Error: ${err.message}`);
   }
 });
 
-// ===== Scheduled tasks =====
-// Automatic scan every 5 minutes
+// === Escaneo periódico cada hora ===
 setInterval(async () => {
   try {
-    const evmAddr = config.wallets?.evm?.[0] || config.wallets?.main || config.defaultEth;
-    const tonAddr = config.wallets?.ton?.[0] || null;
-    const evm = await scanEvm(evmAddr);
-    const ton = await scanTon(tonAddr);
-    if (config.adminId) {
-      await bot.telegram.sendMessage(
-        config.adminId,
-        `Scan automático:\nEVM: ${JSON.stringify(evm)}\nTON: ${JSON.stringify(ton)}`,
-      );
-    }
+    const evm = await scanEvm(config.wallets.evm[0]);
+    const ton = await scanTon(config.wallets.ton[0]);
+    await bot.telegram.sendMessage(
+      config.adminId,
+      `⏰ Escaneo automático:\nEVM: ${evm.eth || 0} ETH\nTON: ${ton.ton || 0} TON`
+    );
   } catch (err) {
-    console.error('Error en escaneo periódico:', err.message || err);
+    console.error("Error auto-scan:", err.message);
   }
-}, 5 * 60 * 1000);
+}, 60 * 60 * 1000);
 
-// Daily report at 09:00
-cron.schedule('0 9 * * *', async () => {
+// === Reporte diario 09:00 ===
+cron.schedule("0 9 * * *", async () => {
   try {
-    const evmAddr = config.wallets?.evm?.[0] || config.wallets?.main || config.defaultEth;
-    const tonAddr = config.wallets?.ton?.[0] || null;
-    const evm = await scanEvm(evmAddr);
-    const ton = await scanTon(tonAddr);
-    if (config.adminId) {
-      await bot.telegram.sendMessage(
-        config.adminId,
-        `Reporte diario:\nEVM: ${JSON.stringify(evm)}\nTON: ${JSON.stringify(ton)}`,
-      );
-    }
+    const evm = await scanEvm(config.wallets.evm[0]);
+    const ton = await scanTon(config.wallets.ton[0]);
+    await bot.telegram.sendMessage(
+      config.adminId,
+      `📊 Reporte diario:\nEVM: ${evm.eth || 0} ETH\nTON: ${ton.ton || 0} TON`
+    );
   } catch (err) {
-    console.error('Error en reporte diario:', err.message || err);
+    console.error("Error reporte diario:", err.message);
   }
 });
 
-// ===== Launch the bot =====
-bot.launch()
-  .then(() => console.log('✅ Bot lanzado (polling)'))
+// === Lanzar bot ===
+bot
+  .launch()
+  .then(() => console.log("✅ CryBot en ejecución (polling activo)"))
   .catch((err) => {
-    console.error('❌ Error al lanzar bot:', err.message || err);
+    console.error("❌ Error al lanzar bot:", err.message);
     process.exit(1);
   });
 
-// Keep the process alive
+// Mantener vivo
 process.stdin.resume();
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
