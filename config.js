@@ -16,8 +16,6 @@ function loadConfig() {
 // config.js
 // Módulo central de configuración de CryBot-Telegram
 
-import * as dotenv from 'dotenv';
-dotenv.config();
 
 export function loadConfig() {
   const required = ['BOT_TOKEN', 'ETHERSCAN_API_KEY', 'TON_API_KEY', 'PRIVATE_KEY'];
