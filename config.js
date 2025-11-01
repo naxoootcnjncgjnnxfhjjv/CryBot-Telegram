@@ -16,8 +16,7 @@ function loadConfig() {
 // config.js
 // Módulo central de configuración de CryBot-Telegram
 
-
-export function loadConfig() {
+ function loadConfig() {
   const required = ['BOT_TOKEN', 'ETHERSCAN_API_KEY', 'TON_API_KEY', 'PRIVATE_KEY'];
   const missing = required.filter((key) => !process.env[key]);
 
@@ -68,4 +67,7 @@ export function loadConfig() {
       ton: 'https://tonapi.io/v2',
     }
   };
+   module.exports = { loadConfig };
+
+   
 }
