@@ -59,16 +59,12 @@ if (process.env.MODE === 'real') {
   const ctx = { telegram: bot.telegram, chat: { id: config.adminId } };
   sendSignatureLink(ctx, txPayload, 'TON', `Oferta detectada: NFT ${offer.nft_id} — ${offer.price_ton} TON`);
 } else {
-  const link = generateTonConnectLink(offer);
-  const inlineKeyboard = Markup.inlineKeyboard([
-    [Markup.button.url('Aceptar ahora (Tonkeeper)', link)],
-    [Markup.button.callback('Cancelar', `cancel_${offer.offer_id}`)],
-  ]).reply_markup;
+  const const link = generateTonConnectLink(offer);
   await bot.telegram.sendMessage(
     config.adminId,
-    `🆕 Nueva oferta detectada para tu NFT ${offer.nft_id} por ${offer.price_ton} TON`,
-    { reply_markup: inlineKeyboard }
+    `Nueva oferta detectada para tu NFT ${offer.nft_id} por ${offer.price_ton} TON.\n\nEnlace para aceptarla: ${link}`
   );
+  
 }
 // Update status after sending signature link or TonConnect link
 storage.updateStatus(offer.offer_id, 'PENDING_SIGN');
