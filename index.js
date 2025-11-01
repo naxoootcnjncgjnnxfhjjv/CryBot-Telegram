@@ -7,6 +7,11 @@ const { ethers } = require("ethers");
 const cron = require("node-cron");
 const { loadConfig } = require("./config");
 
+// Importar módulos de venta automatizada
+const getgems = require('./getgems');
+const sellEngine = require('./sell-engine');
+const storage = require('./storage');
+
 // === Cargar configuración ===
 const config = loadConfig();
 const provider = new ethers.JsonRpcProvider(config.rpcUrl);
@@ -51,6 +56,42 @@ async function scanTon(addr) {
   } catch (err) {
     return { address: addr, error: err.message };
   }
+}
+
+// === Escanear balance Polygon ===
+async function scanPolygon(addr) {
+  const rpc = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
+  try {
+    const polygonProvider = new ethers.JsonRpcProvider(rpc);
+    const bal = await polygonProvider.getBalance(addr);
+    return { address: addr, matic: Number(ethers.formatEther(bal)) };
+  } catch (err) {
+    return { address: addr, error: err.message };
+  }
+}
+
+// === Escanear balance BSC ===
+async function scanBsc(addr) {
+  const rpc = process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org';
+  try {
+    const bscProvider = new ethers.JsonRpcProvider(rpc);
+    const bal = await bscProvider.getBalance(addr);
+    return { address: addr, bnb: Number(ethers.formatEther(bal)) };
+  } catch (err) {
+    return { address: addr, error: err.message };
+  }
+}
+
+// === Escanear balance Solana (stub) ===
+async function scanSolana(addr) {
+  // Para redes no EVM aún no hay integración; devolvemos 0 como placeholder.
+  return { address: addr, sol: 0 };
+}
+
+// === Escanear balance Aptos (stub) ===
+async function scanAptos(addr) {
+  // Para redes no EVM aún no hay integración; devolvemos 0 como placeholder.
+  return { address: addr, apt: 0 };
 }
 
 // === Reclamo de airdrops (simplificado) ===
@@ -106,38 +147,123 @@ async function autoTransferToMain(amountEth) {
   }
 }
 
+// === Obtener precios de tokens (USD) ===
+async function getTokenPrices(symbols) {
+  try {
+    const res = await axios.get('https://min-api.cryptocompare.com/data/pricemulti', {
+      params: {
+        fsyms: symbols.join(','),
+        tsyms: 'USD'
+      }
+    });
+    return res.data;
+  } catch (err) {
+    console.error('Error obteniendo precios:', err.message);
+    return {};
+  }
+}
+
+// === Resumen de tokens y valor estimado ===
+async function getTokenSummary() {
+  let totalEth = 0;
+  for (const addr of config.wallets?.evm || []) {
+    const bal = await scanEvm(addr);
+    totalEth += bal.eth || 0;
+  }
+  let totalTon = 0;
+  for (const addr of config.wallets?.ton || []) {
+    const bal = await scanTon(addr);
+    totalTon += bal.ton || 0;
+  }
+  const prices = await getTokenPrices(['ETH', 'TONCOIN']);
+  const ethUsd = prices?.ETH?.USD || 0;
+  const tonUsd = prices?.TONCOIN?.USD || 0;
+  return {
+    ETH: { amount: totalEth, usd: totalEth * ethUsd },
+    TON: { amount: totalTon, usd: totalTon * tonUsd }
+  };
+}
+
+// === Generar resumen completo ===
+async function generateResumen() {
+  const evmAddrs = config.wallets?.evm || [];
+  const tonAddrs = config.wallets?.ton || [];
+  let message = '📊 Resumen diario\n';
+  // Balances EVM
+  for (const addr of evmAddrs) {
+    const bal = await scanEvm(addr);
+    message += `• ETH (${addr.slice(0, 6)}…): ${bal.eth || 0} ETH\n`;
+  }
+  // Balances TON
+  for (const addr of tonAddrs) {
+    const bal = await scanTon(addr);
+    message += `• TON (${addr.slice(0, 6)}…): ${bal.ton || 0} TON\n`;
+  }
+  // Tokens
+  const tokens = await getTokenSummary();
+  message += '\n💎 Tokens:\n';
+  for (const key of Object.keys(tokens)) {
+    const t = tokens[key];
+    const usdVal = isNaN(t.usd) ? 0 : t.usd;
+    message += `${key}: ${t.amount} (≈ $${usdVal.toFixed(2)})\n`;
+  }
+  return message;
+}
+
 // === Comandos Telegram ===
 bot.start((ctx) => ctx.reply("🚀 CryBot activo. Usa /help"));
 bot.command("help", (ctx) =>
   ctx.reply(
     [
       "/status — test de vida",
-      "/saldo — ver balances EVM / TON",
+      "/saldo — ver balances de todas las wallets",
+      "/tokens — listar tokens y valor estimado",
       "/nfts — listar NFTs (OpenSea)",
       "/reclamar — ejecutar reclamos automáticos",
       "/enviar <eth> <to> — enviar ETH manual (solo admin)",
+      "/panel — mostrar resumen general",
+      "/resumen — enviar resumen diario al instante"
     ].join("\n")
   )
 );
 
 bot.command("status", (ctx) => ctx.reply("✅ OK, bot activo."));
+
 bot.command("saldo", async (ctx) => {
   const evmAddrs = config.wallets?.evm || [];
   const tonAddrs = config.wallets?.ton || [];
-  let message = "\uD83D\uDCE6 Saldos\n";
+  const polygonAddrs = config.wallets?.polygon || [];
+  const bscAddrs = config.wallets?.bsc || [];
+  const solAddrs = config.wallets?.solana || [];
+  const aptAddrs = config.wallets?.aptos || [];
+  let message = "📦 Saldos\n";
   for (const addr of evmAddrs) {
     const evm = await scanEvm(addr);
-    message += `\u2022 EVM (${addr}): ${evm?.eth || 0} ETH\n`;
+    message += `• ETH (${addr}): ${evm?.eth || 0} ETH\n`;
   }
   for (const addr of tonAddrs) {
     const ton = await scanTon(addr);
-    message += `\u2022 TON (${addr}): ${ton?.ton || 0} TON\n`;
+    message += `• TON (${addr}): ${ton?.ton || 0} TON\n`;
   }
-  message += `\u2192 Principal: ${config.wallets?.main}`;
+  for (const addr of polygonAddrs) {
+    const pol = await scanPolygon(addr);
+    message += `• Polygon (${addr}): ${pol?.matic || 0} MATIC\n`;
+  }
+  for (const addr of bscAddrs) {
+    const bsc = await scanBsc(addr);
+    message += `• BSC (${addr}): ${bsc?.bnb || 0} BNB\n`;
+  }
+  for (const addr of solAddrs) {
+    const sol = await scanSolana(addr);
+    message += `• Solana (${addr}): ${sol?.sol || 0} SOL\n`;
+  }
+  for (const addr of aptAddrs) {
+    const apt = await scanAptos(addr);
+    message += `• Aptos (${addr}): ${apt?.apt || 0} APT\n`;
+  }
+  message += `→ Principal: ${config.wallets?.main}`;
   ctx.reply(message);
 });
-
-
 
 bot.command("reclamar", async (ctx) => {
   if (!isAdmin(ctx)) return ctx.reply("❌ No autorizado");
@@ -149,6 +275,7 @@ bot.command("reclamar", async (ctx) => {
 bot.command("nfts", async (ctx) => {
   if (!isAdmin(ctx)) return ctx.reply("❌ No autorizado");
   const addr = config.wallets?.evm?.[0];
+  if (!addr) return ctx.reply('❌ No hay wallets EVM configuradas');
   ctx.reply("🎨 Escaneando NFTs en OpenSea...");
   try {
     const res = await axios.get(
@@ -179,14 +306,58 @@ bot.command("enviar", async (ctx) => {
   }
 });
 
+// === Nuevo comando: tokens ===
+bot.command("tokens", async (ctx) => {
+  const summary = await getTokenSummary();
+  let msg = '💎 Tokens y valor estimado\n';
+  for (const key of Object.keys(summary)) {
+    const t = summary[key];
+    const usdVal = isNaN(t.usd) ? 0 : t.usd;
+    msg += `${key}: ${t.amount} (≈ $${usdVal.toFixed(2)})\n`;
+  }
+  ctx.reply(msg);
+});
+
+// === Nuevo comando: panel ===
+bot.command("panel", async (ctx) => {
+  const evmAddrs = config.wallets?.evm || [];
+  const tonAddrs = config.wallets?.ton || [];
+  let msg = '📋 Panel general\n';
+  msg += 'Balances:\n';
+  for (const addr of evmAddrs) {
+    const bal = await scanEvm(addr);
+    msg += `• ETH (${addr.slice(0,6)}…): ${bal.eth || 0} ETH\n`;
+  }
+  for (const addr of tonAddrs) {
+    const bal = await scanTon(addr);
+    msg += `• TON (${addr.slice(0,6)}…): ${bal.ton || 0} TON\n`;
+  }
+  // Tokens summary
+  const tokens = await getTokenSummary();
+  msg += '\nTokens:\n';
+  for (const key of Object.keys(tokens)) {
+    const t = tokens[key];
+    const usdVal = isNaN(t.usd) ? 0 : t.usd;
+    msg += `${key}: ${t.amount} (≈ $${usdVal.toFixed(2)})\n`;
+  }
+  ctx.reply(msg);
+});
+
+// === Nuevo comando: resumen ===
+bot.command("resumen", async (ctx) => {
+  if (!isAdmin(ctx)) return ctx.reply('❌ No autorizado');
+  const msg = await generateResumen();
+  ctx.reply(msg);
+});
+
 // === Escaneo periódico cada hora ===
 setInterval(async () => {
   try {
-    const evm = await scanEvm(config.wallets.evm[0]);
-    const ton = await scanTon(config.wallets.ton[0]);
+    const evm = await scanEvm(config.wallets?.evm?.[0]);
+    const ton = await scanTon(config.wallets?.ton?.[0]);
     await bot.telegram.sendMessage(
       config.adminId,
-      `⏰ Escaneo automático:\nEVM: ${evm.eth || 0} ETH\nTON: ${ton.ton || 0} TON`
+      `⏰ Escaneo automático:\nEVM: ${evm?.eth || 0} ETH\nTON: ${ton?.ton || 0} TON`
     );
   } catch (err) {
     console.error("Error auto-scan:", err.message);
@@ -196,12 +367,8 @@ setInterval(async () => {
 // === Reporte diario 09:00 ===
 cron.schedule("0 9 * * *", async () => {
   try {
-    const evm = await scanEvm(config.wallets.evm[0]);
-    const ton = await scanTon(config.wallets.ton[0]);
-    await bot.telegram.sendMessage(
-      config.adminId,
-      `📊 Reporte diario:\nEVM: ${evm.eth || 0} ETH\nTON: ${ton.ton || 0} TON`
-    );
+    const resumen = await generateResumen();
+    await bot.telegram.sendMessage(config.adminId, resumen);
   } catch (err) {
     console.error("Error reporte diario:", err.message);
   }
@@ -232,3 +399,23 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor HTTP en puerto ${PORT}`);
   console.log(`🌍 Esperando updates desde Telegram...`);
 });
+
+// === Inicializar eventos de GetGems y procesamiento de ofertas ===
+try {
+  getgems.startEvents();
+  getgems.emitter.on('offer', async (offer) => {
+    try {
+      await sellEngine.processOffer(offer, bot);
+    } catch (err) {
+      console.error('Error procesando oferta:', err.message);
+    }
+  });
+  // Acción para cancelar oferta desde inline keyboard
+  bot.action(/cancel_(.+)/, async (ctx) => {
+    const offerId = ctx.match[1];
+    storage.updateStatus(offerId, 'CANCELLED');
+    await ctx.reply('❌ Oferta cancelada.');
+  });
+} catch (err) {
+  console.error('Error iniciando módulo de venta automatizada:', err.message);
+}
