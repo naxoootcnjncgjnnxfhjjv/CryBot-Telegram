@@ -1,20 +1,6 @@
-econst dotenv = require('dotenv');
+const dotenv = require('dotenv');
 dotenv.config();
 
-/*function loadConfig() {
-  const config = {
-    botToken: process.env.BOT_TOKEN,
-    adminId: process.env.ADMIN_TELEGRAM_ID || null,
-    privateKey: process.env.PRIVATE_KEY,
-    rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com',
-    etherscanApiKey: process.env.ETHERSCAN_API_KEY || null,
-    tonApiKey: process.env.TON_API_KEY || null,
-    network: process.env.NETWORK || 'mainnet',
-    defaultEth: process.env.DEFAULT_ETH || null,
-    wallets: {
-      main: process.env.MAIN_WALLET || null,
-// config.js
-// Módulo central de configuración de CryBot-Telegram
 
  function loadConfig() {
   const required = ['BOT_TOKEN', 'ETHERSCAN_API_KEY', 'TON_API_KEY', 'PRIVATE_KEY'];
@@ -67,6 +53,12 @@ dotenv.config();
       ton: 'https://tonapi.io/v2',
     }
   };
+   
+
+
+
+   
+
    module.exports = { loadConfig };
 
    
