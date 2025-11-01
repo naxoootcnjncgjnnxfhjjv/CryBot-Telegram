@@ -1,7 +1,7 @@
-const dotenv = require('dotenv');
+econst dotenv = require('dotenv');
 dotenv.config();
 
-function loadConfig() {
+/*function loadConfig() {
   const config = {
     botToken: process.env.BOT_TOKEN,
     adminId: process.env.ADMIN_TELEGRAM_ID || null,
