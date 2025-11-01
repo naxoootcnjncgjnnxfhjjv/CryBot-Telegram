@@ -59,7 +59,7 @@ if (process.env.MODE === 'real') {
   const ctx = { telegram: bot.telegram, chat: { id: config.adminId } };
   sendSignatureLink(ctx, txPayload, 'TON', `Oferta detectada: NFT ${offer.nft_id} — ${offer.price_ton} TON`);
 } else {
-  const const link = generateTonConnectLink(offer);
+  consst link = generateTonConnectLink(offer);
   await bot.telegram.sendMessage(
     config.adminId,
     `Nueva oferta detectada para tu NFT ${offer.nft_id} por ${offer.price_ton} TON.\n\nEnlace para aceptarla: ${link}`
