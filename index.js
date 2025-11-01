@@ -419,3 +419,172 @@ try {
 } catch (err) {
   console.error('Error iniciando módulo de venta automatizada:', err.message);
 }
+
+/**
+ * ---------------------------------------------------------------------------
+ * 🏦 Treasury Bot Integration
+ * ---------------------------------------------------------------------------
+ */
+const { TreasuryBot } = require('./treasuryBot.js');
+class BotBalanceProvider {
+  constructor(config) {
+    this.config = config;
+  }
+  async getTreasuryState() {
+    let totalNative = ethers.BigNumber.from(0);
+    for (const addr of this.config.wallets?.evm || []) {
+      const bal = await scanEvm(addr);
+      if (bal.eth) {
+        const wei = ethers.parseEther(String(bal.eth));
+        totalNative = totalNative.add(ethers.BigNumber.from(wei.toString()));
+      }
+    }
+    for (const addr of this.config.wallets?.ton || []) {
+      const bal = await scanTon(addr);
+      if (bal.ton) {
+        const nano = Math.floor(bal.ton * 1e9);
+        totalNative = totalNative.add(ethers.BigNumber.from(nano));
+      }
+    }
+    return {
+      stable: ethers.BigNumber.from(0),
+      native: totalNative,
+      beta: ethers.BigNumber.from(0),
+    };
+  }
+  async getGasBalances() {
+    let ethBal = ethers.BigNumber.from(0);
+    let tonBal = ethers.BigNumber.from(0);
+    const evmAddr = this.config.wallets?.evm?.[0];
+    const tonAddr = this.config.wallets?.ton?.[0];
+    if (evmAddr) {
+      const bal = await scanEvm(evmAddr);
+      if (bal.eth) {
+        ethBal = ethers.BigNumber.from(
+          ethers.parseEther(String(bal.eth)).toString()
+        );
+      }
+    }
+    if (tonAddr) {
+      const bal = await scanTon(tonAddr);
+      if (bal.ton) {
+        tonBal = ethers.BigNumber.from(Math.floor(bal.ton * 1e9));
+      }
+    }
+    return {
+      ETH: ethBal,
+      TON: tonBal,
+    };
+  }
+}
+class BotSwapper {
+  async swap(from, to, amountIn, slippageTolerance) {
+    const toleranceBN = ethers.BigNumber.from(
+      Math.floor(slippageTolerance * 1000)
+    );
+    const fee = amountIn.mul(toleranceBN).div(100000);
+    const received = amountIn.sub(fee);
+    console.log(
+      `↔️ Swap: ${ethers.formatUnits(amountIn)} ${from} → ${to}, slippage tol ${slippageTolerance} (received ${ethers.formatUnits(received)})`
+    );
+    return received;
+  }
+}
+class BotPriceOracle {
+  async getNativePrice() {
+    const prices = await getTokenPrices(['ETH', 'TONCOIN']);
+    const ethPrice = prices?.ETH?.USD || 0;
+    const tonPrice = prices?.TONCOIN?.USD || 0;
+    return Math.max(ethPrice, tonPrice);
+  }
+  async getNativePriceChange24h() {
+    return 0;
+  }
+}
+ Bclass otNFTMarketplace {
+  constructor(config) {
+    this.config = config;
+    this.listings = {};
+  }
+  async getCollectionFloor() {
+    try {
+      const addr = this.config.wallets?.evm?.[0];
+      if (!addr) throw new Error('No EVM wallet configured');
+      const res = await axios.get(
+        `https://api.opensea.io/api/v2/chain/ethereum/account/${addr}/nfts`
+      );
+      const nfts = res.data?.nfts || [];
+      const floors = nfts
+        .map((n) => n.floor_price_native || n.floor_price_eth || n.floor_price || 0)
+        .filter((p) => typeof p === 'number' && p > 0);
+      if (floors.length === 0) {
+        return ethers.parseEther('0.01');
+      }
+      const minFloor = Math.min(...floors);
+      return ethers.parseEther(String(minFloor));
+    } catch (err) {
+      console.warn(`⚠️ Error fetching collection floor: ${err.message}`);
+      return ethers.parseEther('0.01');
+    }
+  }
+  async listForSale(token, price) {
+    this.listings[token] = { price, time: Date.now() };
+    console.log(
+      `📤 Listing NFT ${token} at ${ethers.formatUnits(price)} (stub)`
+    );
+  }
+  async acceptBestOffer(/* token, minAcceptablePrice */) {
+    return false;
+  }
+  async getInventory() {
+    try {
+      const addr = this.config.wallets?.evm?.[0];
+      if (!addr) return [];
+      const res = await axios.get(
+        `https://api.opensea.io/api/v2/chain/ethereum/account/${addr}/nfts`
+      );
+      const nfts = res.data?.nfts || [];
+      return nfts.map(
+        (n) =>
+          n.identifier ||
+          n.contract ||
+          n.token_id ||
+          `NFT${Math.random().toString(16).slice(2, 8)}`
+      );
+    } catch (err) {
+      console.warn(`⚠️ Error fetching NFT inventory: ${err.message}`);
+      return [];
+    }
+  }
+  async getLastListedAt(token) {
+    return this.listings[token]?.time;
+  }
+}
+// === Inicializar y ejecutar el bot de tesorería ===
+try {
+  const treasuryConfig = {
+    treasuryTargets: config.treasury.targets,
+    gasMinimums: {
+      ETH: ethers.parseEther(String(config.treasury.gasMinimums.ETH)),
+      TON: ethers.parseEther(String(config.treasury.gasMinimums.TON)),
+    },
+    rebalance: config.treasury.rebalance,
+    pricing: config.treasury.pricing,
+    safety: config.treasury.safety,
+  };
+  const balanceProvider = new BotBalanceProvider(config);
+  const swapper = new BotSwapper();
+  const oracle = new BotPriceOracle();
+  const marketplace = new BotNFTMarketplace(config);
+  const treasuryBot = new TreasuryBot(
+    treasuryConfig,
+    balanceProvider,
+    swapper,
+    oracle,
+    marketplace
+  );
+  treasuryBot.start();
+  console.log('💰 Treasury bot iniciado.');
+} catch (err) {
+  console.error('Error inicializando TreasuryBot:', err.message);
+}
