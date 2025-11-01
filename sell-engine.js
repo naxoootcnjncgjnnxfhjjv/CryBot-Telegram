@@ -5,6 +5,8 @@
 const { loadConfig } = require('./config');
 const storage = require('./storage');
 const payout = require('./payout');
+const { sendSignatureLink } = require('./signatureLinks');
+
 const { Markup } = require('telegraf');
 
 // Genera un deep link TonConnect/Tonkeeper. Esta función utiliza un
@@ -45,20 +47,31 @@ async function processOffer(offer, bot) {
     storage.updateStatus(offer.offer_id, 'SOLD');
     // Llamar al módulo de pagos
     await payout.handleSale(offer, bot);
-  } else {
-    // Modo TonConnect: generar enlace y mostrar botones
-    const link = generateTonConnectLink(offer);
-    const inlineKeyboard = Markup.inlineKeyboard([
-      [Markup.button.url('Aceptar ahora (Tonkeeper)', link)],
-      [Markup.button.callback('Cancelar', `cancel_${offer.offer_id}`)],
-    ]).reply_markup;
-    await bot.telegram.sendMessage(
-      config.adminId,
-      `🔥 Nueva oferta detectada para tu NFT ${offer.nft_id} por ${offer.price_ton} TON.`,
-      { reply_markup: inlineKeyboard }
-    );
-    storage.updateStatus(offer.offer_id, 'PENDING_SIGN');
-  }
+  } else 
+if (process.env.MODE === 'real') {
+  const txPayload = {
+    offer_id: offer.offer_id,
+    price_ton: offer.price_ton,
+    nft_id: offer.nft_id,
+    buyer: offer.buyer,
+    wallet_owner: offer.wallet_owner,
+  };
+  const ctx = { telegram: bot.telegram, chat: { id: config.adminId } };
+  sendSignatureLink(ctx, txPayload, 'TON', `Oferta detectada: NFT ${offer.nft_id} — ${offer.price_ton} TON`);
+} else {
+  const link = generateTonConnectLink(offer);
+  const inlineKeyboard = Markup.inlineKeyboard([
+    [Markup.button.url('Aceptar ahora (Tonkeeper)', link)],
+    [Markup.button.callback('Cancelar', `cancel_${offer.offer_id}`)],
+  ]).reply_markup;
+  await bot.telegram.sendMessage(
+    config.adminId,
+    `🆕 Nueva oferta detectada para tu NFT ${offer.nft_id} por ${offer.price_ton} TON`,
+    { reply_markup: inlineKeyboard }
+  );
+}
+// Update status after sending signature link or TonConnect link
+storage.updateStatus(offer.offer_id, 'PENDING_SIGN');
 }
 
 module.exports = {
