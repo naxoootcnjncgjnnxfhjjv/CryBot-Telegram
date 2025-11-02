@@ -501,7 +501,7 @@ class BotPriceOracle {
     return 0;
   }
 }
- Bclass otNFTMarketplace {
+ class BotNFTMarketplace {
   constructor(config) {
     this.config = config;
     this.listings = {};
