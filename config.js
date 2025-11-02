@@ -21,6 +21,13 @@ function loadConfig() {
     rpcUrl: process.env.RPC_URL || 'https://eth.llamarpc.com',
     etherscanApiKey: process.env.ETHERSCAN_API_KEY,
     tonApiKey: process.env.TON_API_KEY,
+        // Additional RPC endpoints for multi-chain support
+    ethRpc: process.env.ETH_RPC,
+    bscRpc: process.env.BSC_RPC,
+    polygonRpc: process.env.POLYGON_RPC,
+
+    // List of contracts to claim rewards from (comma-separated in env)
+    airdropContracts: (process.env.AIRDROP_CONTRACTS || '').split(',').filter(Boolean),
 
     // --- General ---
     network: process.env.NETWORK || 'mainnet',
