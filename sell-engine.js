@@ -46,9 +46,9 @@ async function processOffer(offer, bot) {
     );
     storage.updateStatus(offer.offer_id, 'SOLD');
     // Llamar al módulo de pagos
-    await payout.handleSale(offer, bot);
-  } else 
-if (process.env.MODE === 'real') {
+    await payout.handleSale(offer, bot); 
+  }  
+ felse if(process.env.MODE === 'rea=l') {
   const txPayload = {
     offer_id: offer.offer_id,
     price_ton: offer.price_ton,
