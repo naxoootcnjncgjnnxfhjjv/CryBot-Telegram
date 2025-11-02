@@ -48,7 +48,7 @@ async function processOffer(offer, bot) {
     // Llamar al módulo de pagos
     await payout.handleSale(offer, bot); 
   }  
- felse if(process.env.MODE === 'rea=l') {
+ else if (process.env.MODE === 'real') {
   const txPayload = {
     offer_id: offer.offer_id,
     price_ton: offer.price_ton,
@@ -59,9 +59,9 @@ async function processOffer(offer, bot) {
   const ctx = { telegram: bot.telegram, chat: { id: config.adminId } };
   sendSignatureLink(ctx, txPayload, 'TON', `Oferta detectada: NFT ${offer.nft_id} — ${offer.price_ton} TON`);
 } else {
-  consst link = generateTonConnectLink(offer);
+  const link = generateTonConnectLink(offer);
   await bot.telegram.sendMessage(
-    config.adminId,
+config.adminId,
     `Nueva oferta detectada para tu NFT ${offer.nft_id} por ${offer.price_ton} TON.\n\nEnlace para aceptarla: ${link}`
   );
   
