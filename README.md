@@ -76,3 +76,5 @@ El bot también realiza un escaneo automático cada 5 minutos y envía un report
 ## Contribuir
 
 Las contribuciones son bienvenidas. Puedes abrir issues o PRs con mejoras, reportes de bugs o nuevas funcionalidades. Se recomienda seguir las convenciones de codificación definidas en `.github/copilot-instructions.md` para sacar el máximo provecho del asistente de GitHub.
+
+<!-- Updated: 2025-11-02 to trigger deployment -->
