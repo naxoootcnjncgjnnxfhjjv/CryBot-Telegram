@@ -7,9 +7,8 @@ function loadConfig() {
   const missing = required.filter((key) => !process.env[key]);
 
   if (missing.length > 0) {
-    console.warn(`⚠️ Faltan variables de entorno: ${missing.join(', ')}`);
-  }
-
+  
+  
   return {
     // --- Telegram ---
     botToken: process.env.BOT_TOKEN,
@@ -34,6 +33,10 @@ function loadConfig() {
     port: process.env.PORT || 3000,
     env: process.env.NODE_ENV || 'production',
 
+          // Interval for periodic scanning of wallets (minutes)
+      scanInterval: parseInt(process.env.SCAN_INTERVAL_MINUTES || "60", 10),
+      // Interval for GetGems polling in minutes
+      getgemsInterval: parseInt(process.env.GETGEMS_POLL_MINUTES || "2", 10),
     // --- Wallets controladas ---
     wallets: {
       // Main wallet where profits and fees are consolidated
