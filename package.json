@@ -5,8 +5,11 @@
   "scripts": {
     "start": "node index.js",
     "dev": "NODE_ENV=development node index.js",
-    "treasury": "npx ts-node treasuryBot.ts"
+    "treasury": "npx ts-node treasuryBot.ts",
+    "cron": "node cron.js"
   },
+  
+  
   "engines": {
     "node": ">=18.17"
   },
