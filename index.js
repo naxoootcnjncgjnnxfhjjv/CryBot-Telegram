@@ -7,7 +7,11 @@ const { ethers } = require("ethers");
 const cron = require("node-cron");
 const { loadConfig } = require("./config");
 
-// Importar módulos de venta automatizada
+// Importar módulos de venta automatizada para GetGems y PlanetIX
+const { startAutoListing } = require('./sell_getgems');
+const { startMonitoring } = require('./sell_planetix');
+
+// Importar módulos de eventos y venta existentes
 const getgems = require('./getgems');
 const sellEngine = require('./sell-engine');
 const storage = require('./storage');
@@ -588,3 +592,9 @@ try {
 } catch (err) {
   console.error('Error inicializando TreasuryBot:', err.message);
 }
+
+// === Iniciar módulos de venta automática ===
+// Listar NFTs en GetGems de forma periódica
+startAutoListing(bot, config.getgems?.listInterval);
+// Aceptar ofertas de PlanetIX periódicamente
+startMonitoring(bot, config.planetix?.pollInterval);
