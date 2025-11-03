@@ -1,0 +1,51 @@
+name: Crybot Ventas Diario
+
+on:
+  schedule:
+    - cron: "5 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  ventas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Consultar métricas (SELLs)
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_PUBLIC_URL }}
+        run: |
+          psql "$DATABASE_URL" -v "ON_ERROR_STOP=1" <<'SQL' > metrics.txt
+          \pset tuples_only on
+          \pset footer off
+          SELECT 'SELLs hoy: ' || COUNT(*)
+             || E'\nVolumen quote hoy: ' || COALESCE(SUM(quote_qty),0)
+             || E'\nPnL% medio hoy: ' || ROUND(AVG(pnl_pct)::numeric,4)
+          FROM trades
+          WHERE bot='crybot' AND side='SELL'
+            AND status IN ('FILLED','closed')
+            AND executed_at >= date_trunc('day', now());
+
+          SELECT E'\n\nÚltimos 7 días por día:';
+          SELECT DATE(executed_at) AS dia,
+                 COUNT(*) AS sells,
+                 COALESCE(SUM(quote_qty),0) AS volumen_quote,
+                 ROUND(AVG(pnl_pct)::numeric,4) AS pnl_pct_medio
+          FROM trades
+          WHERE bot='crybot' AND side='SELL'
+            AND status IN ('FILLED','closed')
+            AND executed_at >= now() - interval '7 days'
+          GROUP BY 1
+          ORDER BY 1;
+          SQL
+
+      - name: Abrir issue con el resumen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Crybot ventas $(date -u +%Y-%m-%d)"
+          body="$(cat metrics.txt)"
+          gh issue create --title "$title" --body "$body"
