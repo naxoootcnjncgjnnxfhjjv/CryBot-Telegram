@@ -1,6 +1,5 @@
-constt dotenv = require('dotenv');
+const dotenv = require('dotenv');
 dotenv.config();
-
 
 function loadConfig() {
   const required = ['BOT_TOKEN', 'ETHERSCAN_API_KEY', 'TON_API_KEY', 'PRIVATE_KEY'];
