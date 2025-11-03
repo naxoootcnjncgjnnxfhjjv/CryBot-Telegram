@@ -1,0 +1,18 @@
+name: Notify Telegram on Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  notify:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Avisar en Telegram
+        run: |
+          MESSAGE="✅ Crybot ha fusionado automáticamente el PR: *${{ github.event.pull_request.title }}* en *${{ github.repository }}*"
+          curl -s -X POST https://api.telegram.org/bot7461419771:AAFms0nWyzBkaEQC6HcObqv37avnA8D4MY4/sendMessage \
+            -d chat_id=607719619 \
+            -d parse_mode=Markdown \
+            -d text="$MESSAGE"
