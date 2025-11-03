@@ -1,6 +1,7 @@
 {
   "name": "crybot-telegram",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "description": "CryBot final multi-chain auto manager",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -8,18 +9,18 @@
     "treasury": "npx ts-node treasuryBot.ts",
     "cron": "node cron.js"
   },
-  
-  
   "engines": {
     "node": ">=18.17"
   },
   "dependencies": {
-    "axios": "^1.7.7",
-    "dotenv": "^16.4.5",
-    "ethers": "^6.13.2",
-    "express": "^4.19.2",
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.2",
+    "telegraf": "^4.14.1",
+    "ethers": "^6.7.1",
     "node-cron": "^3.0.3",
-    "telegraf": "^4.16.3",
+    "express": "^4.19.2",
+    "@ton/ton": "^0.0.5",
+    "@ton/crypto": "^0.0.5",
     "node-fetch": "^3.3.2",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
