@@ -601,7 +601,6 @@ startMonitoring(bot, config.planetix?.pollInterval);
 // ======================================================
 // ♻️ Auto-reinicio inteligente — CryBot Health Monitor
 // ======================================================
-import axios from "axios";
 
 let failedChecks = 0;
 const MAX_FAILS = 3;
