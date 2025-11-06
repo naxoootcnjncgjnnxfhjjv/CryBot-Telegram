@@ -598,3 +598,35 @@ try {
 startAutoListing(bot, config.getgems?.listInterval);
 // Aceptar ofertas de PlanetIX periódicamente
 startMonitoring(bot, config.planetix?.pollInterval);
+// ======================================================
+// ♻️ Auto-reinicio inteligente — CryBot Health Monitor
+// ======================================================
+import axios from "axios";
+
+let failedChecks = 0;
+const MAX_FAILS = 3;
+const CHECK_INTERVAL_MS = 1000 * 60 * 5; // cada 5 minutos
+
+async function checkWebhookHealth() {
+  const url = process.env.DOMAIN || "https://crybot-telegram-production.up.railway.app";
+  try {
+    const res = await axios.get(`${url}/`);
+    if (res.status === 200) {
+      failedChecks = 0;
+      console.log("✅ Webhook activo y respondiendo correctamente.");
+    } else {
+      failedChecks++;
+      console.warn(`⚠️ Respuesta inesperada (${res.status}), intento ${failedChecks}/${MAX_FAILS}`);
+    }
+  } catch (err) {
+    failedChecks++;
+    console.warn(`⚠️ Error al comprobar webhook: ${err.message} (intento ${failedChecks}/${MAX_FAILS})`);
+  }
+
+  if (failedChecks >= MAX_FAILS) {
+    console.error("❌ Webhook inactivo repetidamente. Reiniciando proceso...");
+    process.exit(1); // Railway reinicia automáticamente el contenedor
+  }
+}
+
+setInterval(checkWebhookHealth, CHECK_INTERVAL_MS);
