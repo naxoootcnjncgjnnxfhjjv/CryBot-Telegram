@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "CryBot Telegram miniapp backend",
   "main": "server.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
   },
