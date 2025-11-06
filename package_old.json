@@ -15,4 +15,4 @@ commonjs    "start": "node index_multi.js",
     "node-cron": "^3.0.3",
     "telegraf": "^4.16.3"
   }
-}
+} 
