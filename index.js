@@ -630,3 +630,11 @@ async function checkWebhookHealth() {
 }
 
 setInterval(checkWebhookHealth, CHECK_INTERVAL_MS);
+setInterval(async () => {
+  try {
+    await axios.get(process.env.DOMAIN || "https://crybot-telegram-production.up.railway.app");
+    console.log("💓 Ping de salud enviado");
+  } catch (err) {
+    console.warn("⚠️ Error en ping de salud:", err.message);
+  }
+}, 1000 * 60 * 5); // cada 5 minutos
