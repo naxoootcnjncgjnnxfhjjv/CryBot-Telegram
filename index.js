@@ -381,7 +381,11 @@ cron.schedule("0 9 * * *", async () => {
 // === 🔁 Cambiamos de polling a webhook (modo producción) ===
 const express = require("express");
 const app = express();
-
+// Servir la miniapp de CryBot
+app.use(express.static('public'));
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/login.html');
+});
 const PORT = process.env.PORT || 3000;
 const WEBHOOK_PATH = `/bot${config.botToken}`;
 const DOMAIN = process.env.DOMAIN || process.env.RAILWAY_STATIC_URL || "https://crybot.up.railway.app";
