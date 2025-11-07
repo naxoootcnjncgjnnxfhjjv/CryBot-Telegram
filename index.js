@@ -382,54 +382,48 @@ cron.schedule("0 9 * * *", async () => {
 const express = require("express");
 const app = express();
 
-const WEBHOOK_PATH = '/webhook';
-const WEBHOOK_URL = `${process.env.APP_URL}${WEBHOOK_PATH}`;
-
-// Servir la miniapp de CryBot
-app.use(express.static('public'));
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/login.html');
-});
+// === Configuración limpia del webhook ===
+const DOMAIN = process.env.APP_URL || "https://crybot.up.railway.app";
+const WEBHOOK_PATH = "/webhook";
+const WEBHOOK_URL = `${DOMAIN}${WEBHOOK_PATH}`;
 const PORT = process.env.PORT || 3000;
-process.env.RAILWAY_STATIC_URL || "https://crybot.up.railway.app";
-// === Miniapp CryBot (interfaz web para Telegram) ===
-app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/login.html');
-});
-
-app.get('/dashboard', (req, res) => {
-  res.sendFile(__dirname + '/public/dashboard.html');
-});
-// Middleware de Telegram
+// Middleware para recibir updates desde Telegram
+app.post(WEBHOOK_PATH, (req, res) => bot.handleUpdate(req.body, res));
 
 // === Miniapp CryBot (interfaz web para Telegram) ===
-app.use(express.static('public'));
+app.use(express.static("public"));
 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/login.html');
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/public/login.html");
 });
 
-app.get('/dashboard', (req, res) => {
-  res.sendFile(__dirname + '/public/dashboard.html');
+app.get("/dashboard", (req, res) => {
+  res.sendFile(__dirname + "/public/dashboard.html");
 });
 
-// Configurar webhook en Telegram
+// === Configurar webhook en Telegram ===
 bot.telegram.setWebhook(WEBHOOK_URL)
-  .then(() => console.log(`🌐 Webhook configurado correctamente en: ${WEBHOOK_URL}`))
-  .catch(err => console.error("❌ Error configurando webhook:", err.message));
+  .then(() =>
+    console.log(`🌐 Webhook configurado correctamente en: ${WEBHOOK_URL}`)
+  )
+  .catch((err) =>
+    console.error("❌ Error configurando webhook:", err.message)
+  );
 
-// Endpoint simple para verificar estado
-app.get("/", (_, res) => res.send("✅ CryBot activo y escuchando updates desde Telegram."));
+// === Endpoint simple para verificar estado ===
+app.get("/", (_, res) =>
+  res.send("✅ CryBot activo y escuchando updates desde Telegram.")
+);
 
-// Iniciar servidor Express
-app.listen(process.env.PORT || 3000, () => {
-  console.log(`🚀 Servidor HTTP en puerto ${process.env.PORT || 3000}`);
+// === Iniciar servidor Express ===
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor HTTP en puerto ${PORT}`);
   console.log("🌎 Esperando updates desde Telegram...");
 });
+
 // === Endpoint de datos para el dashboard ===
-app.get('/api/dashboard', async (req, res) => {
+app.get("/api/dashboard", async (req, res) => {
   try {
     const evmAddr = config.wallets?.evm?.[0];
     const tonAddr = config.wallets?.ton?.[0];
@@ -442,7 +436,9 @@ app.get('/api/dashboard', async (req, res) => {
     const rewards = "Último claim hace 2h";
 
     res.json({
-      balance: `${(evmBal.eth || 0).toFixed(4)} ETH | ${(tonBal.ton || 0).toFixed(2)} TON`,
+      balance: `${(evmBal.eth || 0).toFixed(4)} ETH | ${(tonBal.ton || 0).toFixed(
+        2
+      )} TON`,
       nfts: "Planet IX + TON Punks detectados",
       farming,
       rewards,
@@ -453,49 +449,26 @@ app.get('/api/dashboard', async (req, res) => {
     res.json({ error: err.message });
   }
 });
-// === Endpoint de datos para el dashboard ===
-app.get('/api/dashboard', async (req, res) => {
-  try {
-    const evmAddr = config.wallets?.evm?.[0];
-    const tonAddr = config.wallets?.ton?.[0];
 
-    const evmBal = await scanEvm(evmAddr);
-    const tonBal = await scanTon(tonAddr);
-
-    const tokens = await getTokenSummary();
-    const farming = "EigenLayer + Etherfi activos";
-    const rewards = "Último claim hace 2h";
-
-    res.json({
-      balance: `${(evmBal.eth || 0).toFixed(4)} ETH | ${(tonBal.ton || 0).toFixed(2)} TON`,
-      nfts: "Planet IX + TON Punks detectados",
-      farming,
-      rewards,
-      tokens,
-    });
-  } catch (err) {
-    console.error("Error cargando dashboard:", err.message);
-    res.json({ error: err.message });
-  }
-});
 // === Inicializar eventos de GetGems y procesamiento de ofertas ===
 try {
   getgems.startEvents();
-  getgems.emitter.on('offer', async (offer) => {
+  getgems.emitter.on("offer", async (offer) => {
     try {
       await sellEngine.processOffer(offer, bot);
     } catch (err) {
-      console.error('Error procesando oferta:', err.message);
+      console.error("Error procesando oferta:", err.message);
     }
   });
+
   // Acción para cancelar oferta desde inline keyboard
   bot.action(/cancel_(.+)/, async (ctx) => {
     const offerId = ctx.match[1];
-    storage.updateStatus(offerId, 'CANCELLED');
-    await ctx.reply('❌ Oferta cancelada.');
+    storage.updateStatus(offerId, "CANCELLED");
+    await ctx.reply("❌ Oferta cancelada.");
   });
 } catch (err) {
-  console.error('Error iniciando módulo de venta automatizada:', err.message);
+  console.error("Error iniciando módulo de venta automatizada:", err.message);
 }
 
 /**
@@ -503,11 +476,13 @@ try {
  * 🏦 Treasury Bot Integration
  * ---------------------------------------------------------------------------
  */
-const { TreasuryBot } = require('./treasuryBot.js');
+const { TreasuryBot } = require("./treasuryBot.js");
+
 class BotBalanceProvider {
   constructor(config) {
     this.config = config;
   }
+
   async getTreasuryState() {
     let totalNative = ethers.BigNumber.from(0);
     for (const addr of this.config.wallets?.evm || []) {
@@ -517,6 +492,7 @@ class BotBalanceProvider {
         totalNative = totalNative.add(ethers.BigNumber.from(wei.toString()));
       }
     }
+
     for (const addr of this.config.wallets?.ton || []) {
       const bal = await scanTon(addr);
       if (bal.ton) {
@@ -524,17 +500,20 @@ class BotBalanceProvider {
         totalNative = totalNative.add(ethers.BigNumber.from(nano));
       }
     }
+
     return {
       stable: ethers.BigNumber.from(0),
       native: totalNative,
       beta: ethers.BigNumber.from(0),
     };
   }
+
   async getGasBalances() {
     let ethBal = ethers.BigNumber.from(0);
     let tonBal = ethers.BigNumber.from(0);
     const evmAddr = this.config.wallets?.evm?.[0];
     const tonAddr = this.config.wallets?.ton?.[0];
+
     if (evmAddr) {
       const bal = await scanEvm(evmAddr);
       if (bal.eth) {
@@ -543,18 +522,21 @@ class BotBalanceProvider {
         );
       }
     }
+
     if (tonAddr) {
       const bal = await scanTon(tonAddr);
       if (bal.ton) {
         tonBal = ethers.BigNumber.from(Math.floor(bal.ton * 1e9));
       }
     }
+
     return {
       ETH: ethBal,
       TON: tonBal,
     };
   }
 }
+
 class BotSwapper {
   async swap(from, to, amountIn, slippageTolerance) {
     const toleranceBN = ethers.BigNumber.from(
@@ -568,52 +550,67 @@ class BotSwapper {
     return received;
   }
 }
+
 class BotPriceOracle {
   async getNativePrice() {
-    const prices = await getTokenPrices(['ETH', 'TONCOIN']);
+    const prices = await getTokenPrices(["ETH", "TONCOIN"]);
     const ethPrice = prices?.ETH?.USD || 0;
     const tonPrice = prices?.TONCOIN?.USD || 0;
     return Math.max(ethPrice, tonPrice);
   }
+
   async getNativePriceChange24h() {
     return 0;
   }
 }
- class BotNFTMarketplace {
+
+class BotNFTMarketplace {
   constructor(config) {
     this.config = config;
     this.listings = {};
   }
+
   async getCollectionFloor() {
     try {
       const addr = this.config.wallets?.evm?.[0];
-      if (!addr) throw new Error('No EVM wallet configured');
+      if (!addr) throw new Error("No EVM wallet configured");
       const res = await axios.get(
         `https://api.opensea.io/api/v2/chain/ethereum/account/${addr}/nfts`
       );
       const nfts = res.data?.nfts || [];
       const floors = nfts
-        .map((n) => n.floor_price_native || n.floor_price_eth || n.floor_price || 0)
-        .filter((p) => typeof p === 'number' && p > 0);
+        .map(
+          (n) =>
+            n.floor_price_native ||
+            n.floor_price_eth ||
+            n.floor_price ||
+            0
+        )
+        .filter((p) => typeof p === "number" && p > 0);
+
       if (floors.length === 0) {
-        return ethers.parseEther('0.01');
+        return ethers.parseEther("0.01");
       }
+
       const minFloor = Math.min(...floors);
       return ethers.parseEther(String(minFloor));
     } catch (err) {
       console.warn(`⚠️ Error fetching collection floor: ${err.message}`);
-      return ethers.parseEther('0.01');
+      return ethers.parseEther("0.01");
     }
   }
+
   async listForSale(token, price) {
     this.listings[token] = { price, time: Date.now() };
     console.log(
       `📤 Listing NFT ${token} at ${ethers.formatUnits(price)} (stub)`
     );
   }
-  async acceptBestOffer(/* token, minAcceptablePrice */) {
+
+  async acceptBestOffer() {
     return false;
   }
+
   async getInventory() {
     try {
       const addr = this.config.wallets?.evm?.[0];
@@ -634,10 +631,12 @@ class BotPriceOracle {
       return [];
     }
   }
+
   async getLastListedAt(token) {
     return this.listings[token]?.time;
   }
 }
+
 // === Inicializar y ejecutar el bot de tesorería ===
 try {
   const treasuryConfig = {
@@ -650,10 +649,12 @@ try {
     pricing: config.treasury.pricing,
     safety: config.treasury.safety,
   };
+
   const balanceProvider = new BotBalanceProvider(config);
   const swapper = new BotSwapper();
   const oracle = new BotPriceOracle();
   const marketplace = new BotNFTMarketplace(config);
+
   const treasuryBot = new TreasuryBot(
     treasuryConfig,
     balanceProvider,
@@ -662,16 +663,15 @@ try {
     marketplace
   );
   treasuryBot.start();
-  console.log('💰 Treasury bot iniciado.');
+  console.log("💰 Treasury bot iniciado.");
 } catch (err) {
-  console.error('Error inicializando TreasuryBot:', err.message);
+  console.error("Error inicializando TreasuryBot:", err.message);
 }
 
 // === Iniciar módulos de venta automática ===
-// Listar NFTs en GetGems de forma periódica
 startAutoListing(bot, config.getgems?.listInterval);
-// Aceptar ofertas de PlanetIX periódicamente
 startMonitoring(bot, config.planetix?.pollInterval);
+
 // ======================================================
 // ♻️ Auto-reinicio inteligente — CryBot Health Monitor
 // ======================================================
@@ -681,7 +681,9 @@ const MAX_FAILS = 3;
 const CHECK_INTERVAL_MS = 1000 * 60 * 5; // cada 5 minutos
 
 async function checkWebhookHealth() {
-  const url = process.env.DOMAIN || "https://crybot-telegram-production.up.railway.app";
+  const url =
+    process.env.DOMAIN || "https://crybot-telegram-production.up.railway.app";
+
   try {
     const res = await axios.get(`${url}/`);
     if (res.status === 200) {
@@ -689,23 +691,33 @@ async function checkWebhookHealth() {
       console.log("✅ Webhook activo y respondiendo correctamente.");
     } else {
       failedChecks++;
-      console.warn(`⚠️ Respuesta inesperada (${res.status}), intento ${failedChecks}/${MAX_FAILS}`);
+      console.warn(
+        `⚠️ Respuesta inesperada (${res.status}), intento ${failedChecks}/${MAX_FAILS}`
+      );
     }
   } catch (err) {
     failedChecks++;
-    console.warn(`⚠️ Error al comprobar webhook: ${err.message} (intento ${failedChecks}/${MAX_FAILS})`);
+    console.warn(
+      `⚠️ Error al comprobar webhook: ${err.message} (intento ${failedChecks}/${MAX_FAILS})`
+    );
   }
 
   if (failedChecks >= MAX_FAILS) {
-    console.error("❌ Webhook inactivo repetidamente. Reiniciando proceso...");
-    process.exit(1); // Railway reinicia automáticamente el contenedor
+    console.error(
+      "❌ Webhook inactivo repetidamente. Reiniciando proceso..."
+    );
+    process.exit(1);
   }
 }
 
 setInterval(checkWebhookHealth, CHECK_INTERVAL_MS);
+
 setInterval(async () => {
   try {
-    await axios.get(process.env.DOMAIN || "https://crybot-telegram-production.up.railway.app");
+    await axios.get(
+      process.env.DOMAIN ||
+        "https://crybot-telegram-production.up.railway.app"
+    );
     console.log("💓 Ping de salud enviado");
   } catch (err) {
     console.warn("⚠️ Error en ping de salud:", err.message);
