@@ -390,10 +390,28 @@ const PORT = process.env.PORT || 3000;
 const WEBHOOK_PATH = `/bot${config.botToken}`;
 const DOMAIN = process.env.DOMAIN || process.env.RAILWAY_STATIC_URL || "https://crybot.up.railway.app";
 const WEBHOOK_URL = `${DOMAIN}${WEBHOOK_PATH}`;
+// === Miniapp CryBot (interfaz web para Telegram) ===
+app.use(express.static('public'));
 
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/login.html');
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(__dirname + '/public/dashboard.html');
+});
 // Middleware de Telegram
 app.use(bot.webhookCallback(WEBHOOK_PATH));
+// === Miniapp CryBot (interfaz web para Telegram) ===
+app.use(express.static('public'));
 
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/login.html');
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(__dirname + '/public/dashboard.html');
+});
 // Configurar webhook en Telegram
 bot.telegram.setWebhook(WEBHOOK_URL)
   .then(() => console.log(`🌐 Webhook configurado en: ${WEBHOOK_URL}`))
@@ -407,7 +425,56 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor HTTP en puerto ${PORT}`);
   console.log(`🌍 Esperando updates desde Telegram...`);
 });
+// === Endpoint de datos para el dashboard ===
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    const evmAddr = config.wallets?.evm?.[0];
+    const tonAddr = config.wallets?.ton?.[0];
 
+    const evmBal = await scanEvm(evmAddr);
+    const tonBal = await scanTon(tonAddr);
+
+    const tokens = await getTokenSummary();
+    const farming = "EigenLayer + Etherfi activos";
+    const rewards = "Último claim hace 2h";
+
+    res.json({
+      balance: `${(evmBal.eth || 0).toFixed(4)} ETH | ${(tonBal.ton || 0).toFixed(2)} TON`,
+      nfts: "Planet IX + TON Punks detectados",
+      farming,
+      rewards,
+      tokens,
+    });
+  } catch (err) {
+    console.error("Error cargando dashboard:", err.message);
+    res.json({ error: err.message });
+  }
+});
+// === Endpoint de datos para el dashboard ===
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    const evmAddr = config.wallets?.evm?.[0];
+    const tonAddr = config.wallets?.ton?.[0];
+
+    const evmBal = await scanEvm(evmAddr);
+    const tonBal = await scanTon(tonAddr);
+
+    const tokens = await getTokenSummary();
+    const farming = "EigenLayer + Etherfi activos";
+    const rewards = "Último claim hace 2h";
+
+    res.json({
+      balance: `${(evmBal.eth || 0).toFixed(4)} ETH | ${(tonBal.ton || 0).toFixed(2)} TON`,
+      nfts: "Planet IX + TON Punks detectados",
+      farming,
+      rewards,
+      tokens,
+    });
+  } catch (err) {
+    console.error("Error cargando dashboard:", err.message);
+    res.json({ error: err.message });
+  }
+});
 // === Inicializar eventos de GetGems y procesamiento de ofertas ===
 try {
   getgems.startEvents();
