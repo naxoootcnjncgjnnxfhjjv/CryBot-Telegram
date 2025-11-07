@@ -279,12 +279,13 @@ app.get("/dashboard", (_, res) =>
 );
 
 // === Endpoint de webhook ===
-app.post(WEBHOOK_PATH, (req, res) => {
+app.post(WEBHOOK_PATH, async (req, res) => {
   try {
-    bot.handleUpdate(req.body, res);
+    await bot.handleUpdate(req.body);
+    res.status(200).send("OK");
   } catch (err) {
     console.error("❌ Error procesando update:", err.message);
-    res.status(500).send("Error interno");
+    res.status(200).send("Error");
   }
 });
 
