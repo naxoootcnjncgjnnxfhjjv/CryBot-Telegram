@@ -399,7 +399,7 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(__dirname + '/public/dashboard.html');
 });
 // Middleware de Telegram
-app.use(bot.webhookCallback(WEBHOOK_PATH));
+
 // === Miniapp CryBot (interfaz web para Telegram) ===
 app.use(express.static('public'));
 
