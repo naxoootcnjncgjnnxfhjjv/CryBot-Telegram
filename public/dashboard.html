@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>CryBot Dashboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      body {
+        background-color: #0b1622;
+        color: white;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      header {
+        background-color: #121e2e;
+        padding: 15px;
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: #20c997;
+      }
+      .content {
+        padding: 20px;
+      }
+      .card {
+        background-color: #162436;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 0 8px rgba(0,0,0,0.4);
+      }
+      h3 {
+        color: #20c997;
+      }
+      .value {
+        font-size: 18px;
+      }
+      button {
+        background-color: #20c997;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>CryBot Panel</header>
+    <div class="content">
+      <div class="card">
+        <h3>💰 Balance Total</h3>
+        <div class="value" id="balance">Cargando...</div>
+      </div>
+
+      <div class="card">
+        <h3>🎨 NFTs Detectados</h3>
+        <div class="value" id="nfts">Cargando...</div>
+      </div>
+
+      <div class="card">
+        <h3>🌾 Farming Activo</h3>
+        <div class="value" id="farming">Cargando...</div>
+      </div>
+
+      <div class="card">
+        <h3>🔁 Última Recompensa</h3>
+        <div class="value" id="rewards">Cargando...</div>
+      </div>
+
+      <button id="refresh">Actualizar Datos 🔄</button>
+    </div>
+
+    <script>
+      const tg = window.Telegram.WebApp;
+      const user = tg.initDataUnsafe?.user;
+
+      document.getElementById("refresh").addEventListener("click", loadData);
+
+      async function loadData() {
+        document.getElementById("balance").innerText = "Consultando...";
+        document.getElementById("nfts").innerText = "Consultando...";
+        document.getElementById("farming").innerText = "Consultando...";
+        document.getElementById("rewards").innerText = "Consultando...";
+
+        try {
+          const res = await fetch(`/api/dashboard?user=${user.id}`);
+          const data = await res.json();
+
+          document.getElementById("balance").innerText = data.balance || "0.00 USD";
+          document.getElementById("nfts").innerText = data.nfts || "0 NFTs";
+          document.getElementById("farming").innerText = data.farming || "No activo";
+          document.getElementById("rewards").innerText = data.rewards || "Sin datos";
+        } catch (err) {
+          document.getElementById("balance").innerText = "Error al cargar";
+          console.error(err);
+        }
+      }
+
+      tg.ready();
+      loadData();
+    </script>
+  </body>
+</html>
