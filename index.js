@@ -381,6 +381,10 @@ cron.schedule("0 9 * * *", async () => {
 // === 🔁 Cambiamos de polling a webhook (modo producción) ===
 const express = require("express");
 const app = express();
+
+const WEBHOOK_PATH = '/webhook';
+const WEBHOOK_URL = `${process.env.APP_URL}${WEBHOOK_PATH}`;
+
 // Servir la miniapp de CryBot
 app.use(express.static('public'));
 app.get('/', (req, res) => {
@@ -410,9 +414,6 @@ app.get('/', (req, res) => {
 app.get('/dashboard', (req, res) => {
   res.sendFile(__dirname + '/public/dashboard.html');
 });
-
-// Middleware para recibir updates de Telegram
-app.post(WEBHOOK_PATH, (req, res) => bot.handleUpdate(req.body, res));
 
 // Configurar webhook en Telegram
 bot.telegram.setWebhook(WEBHOOK_URL)
