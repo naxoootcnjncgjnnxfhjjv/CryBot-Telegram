@@ -412,18 +412,25 @@ app.get('/', (req, res) => {
 app.get('/dashboard', (req, res) => {
   res.sendFile(__dirname + '/public/dashboard.html');
 });
+// === CONFIGURAR WEBHOOK CORRECTO ===
+const WEBHOOK_PATH = '/webhook';
+const WEBHOOK_URL = `${process.env.APP_URL}${WEBHOOK_PATH}`;
+
+// Middleware para recibir updates de Telegram
+app.post(WEBHOOK_PATH, (req, res) => bot.handleUpdate(req.body, res));
+
 // Configurar webhook en Telegram
 bot.telegram.setWebhook(WEBHOOK_URL)
-  .then(() => console.log(`🌐 Webhook configurado en: ${WEBHOOK_URL}`))
-  .catch((err) => console.error("❌ Error configurando webhook:", err.message));
+  .then(() => console.log(`🌐 Webhook configurado correctamente en: ${WEBHOOK_URL}`))
+  .catch(err => console.error("❌ Error configurando webhook:", err.message));
 
 // Endpoint simple para verificar estado
-app.get("/", (_, res) => res.send("✅ CryBot webhook activo y escuchando."));
+app.get("/", (_, res) => res.send("✅ CryBot activo y escuchando updates desde Telegram."));
 
 // Iniciar servidor Express
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor HTTP en puerto ${PORT}`);
-  console.log(`🌍 Esperando updates desde Telegram...`);
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`🚀 Servidor HTTP en puerto ${process.env.PORT || 3000}`);
+  console.log("🌎 Esperando updates desde Telegram...");
 });
 // === Endpoint de datos para el dashboard ===
 app.get('/api/dashboard', async (req, res) => {
