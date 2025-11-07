@@ -387,9 +387,7 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/login.html');
 });
 const PORT = process.env.PORT || 3000;
-const WEBHOOK_PATH = `/bot${config.botToken}`;
-const DOMAIN = process.env.DOMAIN || process.env.RAILWAY_STATIC_URL || "https://crybot.up.railway.app";
-const WEBHOOK_URL = `${DOMAIN}${WEBHOOK_PATH}`;
+process.env.RAILWAY_STATIC_URL || "https://crybot.up.railway.app";
 // === Miniapp CryBot (interfaz web para Telegram) ===
 app.use(express.static('public'));
 
