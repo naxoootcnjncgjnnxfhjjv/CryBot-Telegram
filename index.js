@@ -412,9 +412,6 @@ app.get('/', (req, res) => {
 app.get('/dashboard', (req, res) => {
   res.sendFile(__dirname + '/public/dashboard.html');
 });
-// === CONFIGURAR WEBHOOK CORRECTO ===
-const WEBHOOK_PATH = '/webhook';
-const WEBHOOK_URL = `${process.env.APP_URL}${WEBHOOK_PATH}`;
 
 // Middleware para recibir updates de Telegram
 app.post(WEBHOOK_PATH, (req, res) => bot.handleUpdate(req.body, res));
