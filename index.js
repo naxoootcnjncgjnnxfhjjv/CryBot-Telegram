@@ -320,14 +320,27 @@ app.get("/api/dashboard", async (req, res) => {
 });
 
 // === Iniciar servidor Express y configurar webhook ===
+// === Iniciar servidor Express y configurar webhook ===
 app.listen(PORT, async () => {
   console.log(`🚀 Servidor HTTP iniciado en puerto ${PORT}`);
+
   try {
+    // Intentar configurar webhook normal
     await bot.telegram.setWebhook(WEBHOOK_URL);
     console.log(`🌐 Webhook configurado correctamente: ${WEBHOOK_URL}`);
   } catch (err) {
     console.error("❌ Error configurando webhook:", err.message);
+
+    // === Fallback automático: modo polling ===
+    try {
+      await bot.telegram.deleteWebhook().catch(() => {});
+      await bot.launch();
+      console.log("🛰 Webhook alternativo en modo polling activado.");
+    } catch (pollErr) {
+      console.error("⚠️ Error iniciando modo polling:", pollErr.message);
+    }
   }
+
   console.log("🌎 Esperando updates desde Telegram...");
 });
 // ======================================================
