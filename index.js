@@ -277,7 +277,13 @@ app.get("/", (_, res) =>
 app.get("/dashboard", (_, res) =>
   res.sendFile(__dirname + "/public/dashboard.html")
 );
-
+// === Iniciar monitoreo automático de GetGems y PlanetIX ===
+try {
+  startMonitoring(bot);
+  console.log("🎨 GetGems monitor iniciado correctamente.");
+} catch (err) {
+  console.error("❌ Error al iniciar monitoreo GetGems:", err.message);
+}
 // === Endpoint de webhook ===
 app.post(WEBHOOK_PATH, async (req, res) => {
   try {
