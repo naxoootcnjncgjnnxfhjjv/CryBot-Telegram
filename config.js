@@ -40,7 +40,8 @@ function loadConfig() {
     env: process.env.NODE_ENV || 'production',
     scanInterval: parseInt(process.env.SCAN_INTERVAL_MINUTES || '60', 10),
     getgemsInterval: parseInt(process.env.GETGEMS_POLL_MINUTES || '2', 10),
-    // === Wallets ===
+
+              // === Wallets ===
     wallets: {
       // Dirección principal donde se consolidan los fondos y a la que
       // se envían los ingresos de NFT y swaps.  Se puede definir
@@ -67,6 +68,10 @@ function loadConfig() {
         return list.length ? list : [
           'UQChtGxrxo1H74kGde0GNsSKWYG_rhGMKNco-opmWQ1B-yil',
           'UQDY-o0QuHWumsIKstom7sXBzlX2fQ27-cz4r01e9QatvWZU',
+          'UQAMPbQpQJtnPlS5aQQUYMv6uKeEQQg0YQ8bjn0IB1OgheTk',
+          'UQCcLv7JUPrlFZ7-504vbxfTxK6o93nHTwwN-Qv16NsCRy20',
+        ];
+      })(),
           'UQAMPbQpQJtnPlS5aQQUYMv6uKeEQQg0YQ8bjn0IB1OgheTk',
           'UQCcLv7JUPrlFZ7-504vbxfTxK6o93nHTwwN-Qv16NsCRy20',
         ];
