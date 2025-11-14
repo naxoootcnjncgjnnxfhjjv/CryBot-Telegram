@@ -1,6 +1,6 @@
 const axios = require('axios');
-const TonWeb = require('tonweb');
 const { loadConfig } = require('../config');
+
 
 // Cargar configuración al inicializar el módulo
 const config = loadConfig();
