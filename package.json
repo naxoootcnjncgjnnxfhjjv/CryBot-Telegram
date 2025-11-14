@@ -9,7 +9,6 @@
   "dependencies": {
     "axios": "^1.2.0",
     "telegraf": "^4.12.2",
-    "tonweb": "^0.0.2",
     "ethers": "^6.7.0",
     "dotenv": "^16.0.0"
   }
