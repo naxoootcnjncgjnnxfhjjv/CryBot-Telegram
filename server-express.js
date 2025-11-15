@@ -15,7 +15,7 @@ if (!BOT_TOKEN) {
 
 const WEBHOOK_PATH = process.env.WEBHOOK_PATH || '/webhook';
 const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL; // ej: https://crybot.up.railway.app
+const BASE_URL = process.env.BASE_URL || process.env.RAILWAY_STATIC_URL; // ej: https://crybot.up.railway.app
 
 // 2. Inicializar bot
 const bot = new Telegraf(BOT_TOKEN);
@@ -66,4 +66,4 @@ app.listen(PORT, async () => {
   } else {
     console.warn('BASE_URL no definido. El webhook no se configurara automaticamente.');
   }
-});  
+});
