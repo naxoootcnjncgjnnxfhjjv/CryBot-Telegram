@@ -5,28 +5,21 @@ const { loadConfig } = require('../config');
 const config = loadConfig();
 
 // Crear provider y wallet para Polygon
-const provider = config.polygonRpcUrl ? new ethers.JsonRpcProvider(config.polygonRpcUrl) : null;
-const wallet = (provider && config.privateKey) ? new ethers.Wallet(config.privateKey, provider) : null;
+const provider = config.polygonRpc ? new ethers.JsonRpcProvider(config.polygonRpc) : null;
+const wallet = provider && config.privateKey ? new ethers.Wallet(config.privateKey, provider) : null;
 
 let notify = null;
 const recentSales = [];
 
-/**
- * Define la función de notificación para enviar mensajes por Telegram.
- * @param {Function} fn Función (mensaje) → void
- */
 function setNotifier(fn) {
   notify = fn;
 }
 
-/**
- * Obtiene el saldo en MATIC de la wallet EVM configurada.
- */
 async function getEvmBalance() {
   if (!wallet) return '0';
   try {
     const balance = await provider.getBalance(wallet.address);
-    return ethers.utils.formatEther(balance);
+    return ethers.formatEther(balance);
   } catch (err) {
     console.error('Error al obtener saldo EVM:', err.message);
     return '0';
@@ -35,12 +28,30 @@ async function getEvmBalance() {
 
 /**
  * Obtiene los NFTs de PlanetIX en la wallet configurada.
- * NOTA: Esto es un placeholder; se debe implementar leyendo el contrato ERC-721 de PlanetIX.
+ * Usa balanceOf y tokenOfOwnerByIndex para enumerar los tokens.
  */
 async function getInventory() {
-  // Aquí se debería usar ethers + ABI para listar los tokenIds del usuario
-  // Por ahora devuelve array vacío
-  return [];
+  if (!provider || !wallet || !config.planetix.collectionAddress || !config.planetix.abi) {
+    return [];
+  }
+  try {
+    const contract = new ethers.Contract(
+      config.planetix.collectionAddress,
+      config.planetix.abi,
+      provider
+    );
+    const balanceBN = await contract.balanceOf(wallet.address);
+    const balance = balanceBN.toNumber();
+    const tokens = [];
+    for (let i = 0; i < balance; i++) {
+      const tokenId = await contract.tokenOfOwnerByIndex(wallet.address, i);
+      tokens.push(tokenId.toString());
+    }
+    return tokens;
+  } catch (err) {
+    console.error('Error al obtener NFTs de PlanetIX:', err.message);
+    return [];
+  }
 }
 
 async function getInventoryCount() {
@@ -48,40 +59,26 @@ async function getInventoryCount() {
   return tokens.length;
 }
 
-/**
- * Obtiene la mejor oferta para un token. Placeholder: retorna null.
- * @param {string|number} tokenId Id del NFT
- */
 async function getBestOffer(tokenId) {
-  // Esto debería llamar al contrato de marketplace de PlanetIX para obtener ofertas
+  // Este bot no acepta ni realiza ofertas de PlanetIX automáticamente por motivos de seguridad.
   return null;
 }
 
 async function acceptOffer(tokenId, price) {
   console.log(`Aceptar oferta para PIX ${tokenId} por ${price} IXT`);
-  recentSales.push({
-    platform: 'planetix',
-    asset: tokenId,
-    price,
-    currency: 'IXT',
-  });
+  recentSales.push({ platform: 'planetix', asset: tokenId, price, currency: 'IXT' });
   if (notify) {
-    await notify(`✅ Venta PlanetIX: PIX ${tokenId} vendido por ${price} IXT (simulación).`);
+    await notify(`✅ Venta PlanetIX (simulación): PIX ${tokenId} vendido por ${price} IXT`);
   }
 }
 
 async function listForSale(tokenId, price) {
   console.log(`Listar PIX ${tokenId} por ${price} IXT`);
   if (notify) {
-    await notify(`⚠ Se listó PIX ${tokenId} a ${price} IXT (no implementado).`);
+    await notify(`⚠ Se listó PIX ${tokenId} por ${price} IXT (este módulo es de demostración)`);
   }
 }
 
-/**
- * Comprueba los NFTs de PlanetIX y vende según criterios:
- * - Si existe una oferta ≥ precio mínimo (PLANETIX_MIN_PRICE), se acepta la oferta.
- * - De lo contrario, lista el NFT a la venta a ese precio mínimo.
- */
 async function checkAndSell() {
   const tokens = await getInventory();
   for (const tokenId of tokens) {
@@ -102,6 +99,7 @@ function getRecentSales() {
 module.exports = {
   setNotifier,
   getEvmBalance,
+  getInventory,
   getInventoryCount,
   checkAndSell,
   getRecentSales,
