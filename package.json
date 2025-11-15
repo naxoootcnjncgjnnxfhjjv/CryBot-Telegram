@@ -1,15 +1,16 @@
 {
   "name": "crybot-telegram",
   "version": "1.1.0",
-  "description": "CryBot Telegram with auto-selling on TON and PlanetIX",
-  "main": "index.js",
+  "description": "CryBot Telegram with Express webhook server",
+  "main": "server-express.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server-express.js"
   },
   "dependencies": {
-    "axios": "^1.2.0",
-    "telegraf": "^4.12.2",
-    "ethers": "^6.7.0",
-    "dotenv": "^16.0.0"
+    "telegraf": "^4.16.3",
+    "express": "^4.19.2",
+    "axios": "^1.7.2",
+    "ethers": "^6.13.2",
+    "dotenv": "^16.4.5"
   }
 }
