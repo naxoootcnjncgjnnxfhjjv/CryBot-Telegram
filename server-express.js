@@ -15,9 +15,7 @@ if (!BOT_TOKEN) {
 
 const WEBHOOK_PATH = process.env.WEBHOOK_PATH || '/webhook';
 const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL; // ej: https://crybot.up.railway.app
-
-// 2. Inicializar bot
+const BASE_URL = process.env.BASE_URL || process.env.RAILWAY_STATIC_URL; // ej: https://crybot.up.railway.app
 const bot = new Telegraf(BOT_TOKEN);
 
 // Comandos basicos para probar
