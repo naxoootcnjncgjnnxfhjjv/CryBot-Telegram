@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { Telegraf } = require('telegraf');
-const { loadConfig } = require('../config');
+const { loadConfig } = require('./confg');
 const tonService = require('../services/tonService');
 const planetixService = require('../services/planetixService');
 
