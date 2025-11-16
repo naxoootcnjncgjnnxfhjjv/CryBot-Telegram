@@ -3,7 +3,7 @@ const express = require('express');
 const { Telegraf } = require('telegraf');
 const { loadConfig } = require('./confg');
 const tonService = require('../services/tonService');
-const planetixService = require('../services/planetixService');
+const planetixService = require('../services/planetixService'
 
 // Cargar configuración y servicios
 const config = loadConfig();
@@ -37,7 +37,6 @@ const BASE_URL = process.env.BASE_URL || process.env.RAILWAY_STATIC_URL;
 
 // Inicializar bot de Telegram
 const bot = new Telegraf(BOT_TOKEN);
-
 // Comando /start: guarda el chatId y envía mensaje de bienvenida
 bot.start((ctx) => {
   userChatId = ctx.chat.id;
