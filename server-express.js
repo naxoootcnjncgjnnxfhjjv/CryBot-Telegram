@@ -2,11 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const { Telegraf } = require('telegraf');
 const { loadConfig } = require('./config');
-const tonService = require('../services/tonService');
-const planetixService = require('../services/planetixService');
+const tonService = require('../ervices/tonService');
+cconst planetixService = require('./services/planetixService');
 
-// Cargar configuración y servicios
-const config = loadConfig();
+// Cargar configuración yservicios
+const config = loadConfig);
 
 // Comprobar variables críticas
 const BOT_TOKEN = process.env.BOT_TOKEN;
