@@ -1,4 +1,4 @@
-# CryBot-Telegram
+# CryBot-Telegram 
 
 CryBot‑Telegram es un bot de Telegram que monitoriza los balances de varias wallets en redes EVM (Ethereum y compatibles) y TON, permite reclamar airdrops y enviar ETH a través de comandos de administrador. Se ejecuta con Node.js y usa `telegraf`, `ethers`, `axios` y `node-cron`.
 
