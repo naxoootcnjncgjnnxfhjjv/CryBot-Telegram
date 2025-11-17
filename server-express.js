@@ -2,11 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const { Telegraf } = require('telegraf');
 const { loadConfig } = require('./config');
-const tonService = require('../ervices/tonService');
-cconst planetixService = require('./services/planetixService');
+const tonService = require('../services/tonService');
+const planetixService = require('../services/planetixService');
 
-// Cargar configuración yservicios
-const config = loadConfig);
+// Cargar configuración y servicios
+const config = loadConfig();
 
 // Comprobar variables críticas
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -15,8 +15,12 @@ if (!BOT_TOKEN) {
   process.exit(1);
 }
 
-// Configurar notificaciones (enviadas por Telegram)
+// Inicializar bot de Telegram
+const bot = new Telegraf(BOT_TOKEN);
+
+// Configurar notificaciones (Telegram)
 let userChatId = null;
+
 async function notify(message) {
   if (!userChatId) return;
   try {
@@ -35,19 +39,14 @@ const WEBHOOK_PATH = process.env.WEBHOOK_PATH || '/webhook';
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || process.env.RAILWAY_STATIC_URL;
 
-// Inicializar bot de Telegram
-const bot = new Telegraf(BOT_TOKEN);
-
-// Comando /start: guarda el chatId y envía mensaje de bienvenida
+// Comando /start
 bot.start((ctx) => {
   userChatId = ctx.chat.id;
   ctx.reply('CryBot listo. Usa /saldo para ver balances o /nfts para listar tus NFTs.');
 });
 
 // Comando /ping
-bot.command('ping', (ctx) => {
-  ctx.reply('pong');
-});
+bot.command('ping', (ctx) => ctx.reply('pong'));
 
 // Comando /saldo
 bot.command('saldo', async (ctx) => {
@@ -63,7 +62,6 @@ bot.command('saldo', async (ctx) => {
       `NFTs en TON: ${tonCount}\n` +
       `NFTs en PlanetIX: ${pixCount}`
     );
-
   } catch (err) {
     console.error('Error en comando /saldo:', err.message);
     ctx.reply('Error al obtener saldos o inventario.');
@@ -91,7 +89,6 @@ bot.command('nfts', async (ctx) => {
     }
 
     await ctx.reply(message);
-
   } catch (err) {
     console.error('Error en comando /nfts:', err.message);
     ctx.reply('No se pudieron obtener tus NFTs.');
@@ -104,19 +101,15 @@ app.use(express.json());
 
 // Ruta webhook
 app.post(WEBHOOK_PATH, (req, res) => {
-  bot.handleUpdate(req.body, res).catch((err) => console.error(err));
+  bot.handleUpdate(req.body).catch((err) => console.error(err));
   res.sendStatus(200);
 });
 
 // Healthcheck
-app.get('/health', (_req, res) => {
-  res.status(200).send('OK');
-});
+app.get('/health', (_req, res) => res.status(200).send('OK'));
 
 // Root
-app.get('/', (_req, res) => {
-  res.status(200).send('CryBot server OK');
-});
+app.get('/', (_req, res) => res.status(200).send('CryBot server OK'));
 
 // Iniciar servidor
 app.listen(PORT, async () => {
@@ -131,8 +124,7 @@ app.listen(PORT, async () => {
     }
   } else {
     console.warn(
-      'BASE_URL no definido. El webhook no se configurará automáticamente. ' +
-      'Configura BASE_URL o RAILWAY_STATIC_URL para establecer el webhook.'
+      'BASE_URL no definido. El webhook no se configurará automáticamente.'
     );
   }
 });
