@@ -28,11 +28,13 @@ async function notify(message) {
   try {
     await bot.telegram.sendMessage(userChatId, message);
   } catch (err) {
+ 
     console.error('Error enviando notificación por Telegram:', err.message);
   }
 }
 
 // Notificadores
+
 tonService.setNotifier(notify);
 planetixService.setNotifier(notify);
 
