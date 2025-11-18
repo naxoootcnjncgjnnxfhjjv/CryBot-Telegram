@@ -29,6 +29,7 @@ async function getTonBalance() {
   try {
     const res = await axios.get(`${config.tonApiBase}/v2/accounts/${config.tonWallet}`, {
       headers: { 'X-API-Key': config.tonApiKey },
+      
     });
     const balanceNano = res.data.balance || '0';
     const balance = parseFloat(balanceNano) / 1e9;
@@ -137,6 +138,7 @@ function getRecentSales() {
 module.exports = {
   setNotifier,
   getTonBalance,
+      getInventory,
   getInventoryCount,
   checkAndSell,
   getRecentSales,
