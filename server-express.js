@@ -14,6 +14,7 @@ const config = loadConfig();
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
   console.error('BOT_TOKEN no definido. Configúralo en Railway o en tu .env');
+ 
   process.exit(1);
 }
 
