@@ -50,6 +50,20 @@ bot.command('ventas', async (ctx) => {
     msg += `• ${sale.platform.toUpperCase()}: ${sale.asset} vendido por ${sale.price} ${sale.currency}\n`;
   }
   ctx.reply(msg);
+// Comando /yield: muestra tasas APY de stablecoins
+bot.command('yield', async (ctx) => {
+  try {
+    const rates = await yieldFarmingService.getAaveRates();
+    let message = 'Tasas de rendimiento actuales:\n';
+    Object.keys(rates).forEach(asset => {
+      message += `${asset}: ${rates[asset]} APY\n`;
+    });
+    ctx.reply(message);
+  } catch (e) {
+    ctx.reply('Error al obtener las tasas de rendimiento.');
+  }
+});
+
 });
 
 // Funcíón de notificación centralizada
