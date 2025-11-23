@@ -2,6 +2,8 @@ const { Telegraf } = require('telegraf');
 const { loadConfig } = require('./config');
 const tonService = require('./services/tonService');
 const planetixService = require('./services/planetixService');
+const yieldFarmingService = require('./services/yieldFarming');
+
 
 // Cargar configuración desde variables de entorno
 const config = loadConfig();
