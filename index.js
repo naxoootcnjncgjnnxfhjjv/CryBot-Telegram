@@ -2,6 +2,8 @@ const { Telegraf } = require('telegraf');
 const { loadConfig } = require('./config');
 const tonService = require('./services/tonService');
 const planetixService = require('./services/planetixService');
+const arbitrageService = require('./services/arbitrageService');
+
 
 // Cargar configuración desde variables de entorno
 const config = loadConfig();
@@ -45,10 +47,29 @@ bot.command('ventas', async (ctx) => {
   }
   let msg = 'Ventas recientes:\n';
   for (const sale of sales) {
-    msg += `• ${sale.platform.toUpperCase()}: ${sale.asset} vendido por ${sale.price} ${sale.currency}\n`;
+
+             msg += `• ${sale.platform.toUpperCase()}: ${sale.asset} vendido por ${sale.price} ${sale.currency}\n`;
   }
   ctx.reply(msg);
 });
+
+// Comando /arbitraje: muestra oportunidades de arbitraje
+bot.command('arbitraje', async (ctx) => {
+    try {
+          const opportunities = await arbitrageService.getArbitrageOpportunities();
+          if (!opportunities || opportunities.length === 0) {
+                  ctx.reply('No hay oportunidades de arbitraje en este momento.');
+                  return;
+                }
+          let message = 'Oportunidades de arbitraje:\n';
+          for (const opp of opportunities) {
+                  message += `${opp.pair}: Dex: ${opp.dexPrice} CEX: ${opp.cexPrice} Profit: ${opp.profitPct}\n`;
+                }
+          ctx.reply(message);
+        } catch (e) {
+          ctx.reply('Error al obtener oportunidades de arbitraje.');
+        }
+  });
 
 // Funcíón de notificación centralizada
 async function notify(message) {
