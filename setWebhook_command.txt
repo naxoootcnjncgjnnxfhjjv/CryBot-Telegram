@@ -1,0 +1,5 @@
+# Replace <YOUR_BOT_TOKEN> with the token from BotFather
+# Replace <YOUR_RAILWAY_DOMAIN> with your Railway domain (without trailing slash), e.g. https://crybot-production.up.railway.app
+# This command tells Telegram where to send updates for your bot.
+
+curl -X GET "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=<YOUR_RAILWAY_DOMAIN>/webhook"

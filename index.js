@@ -1,127 +1,95 @@
-const { Telegraf } = require('telegraf');
-const { loadConfig } = require('./config');
-const tonService = require('./services/tonService');
-const planetixService = require('./services/planetixService');
-const arbitrageService = require('./services/arbitrageService');
+/*
+ * Main entrypoint for CryBot on Railway.
+ *
+ * This file uses the Telegraf library to interact with the Telegram Bot API
+ * and Express to expose a webhook endpoint. The bot can run in two modes:
+ *  - Webhook mode: If the `WEBHOOK_DOMAIN` environment variable is set,
+ *    the application will automatically register a webhook on start up
+ *    pointing at `<WEBHOOK_DOMAIN>/webhook`. Railway will invoke this route
+ *    whenever Telegram sends an update. This is the recommended mode for
+ *    cloud deployments.
+ *  - Polling mode: If `WEBHOOK_DOMAIN` is not defined, the bot falls back
+ *    to long polling with `bot.launch()`. This is useful for local
+ *    development.
+ *
+ * Environment variables consumed:
+ *  - BOT_TOKEN (required): The secret token from BotFather for your bot.
+ *  - WEBHOOK_DOMAIN (optional): The base URL of your deployed service
+ *    without a trailing slash, e.g. `https://crybot-production.up.railway.app`.
+ *  - PORT (optional): The port Express should listen on. Railway will
+ *    automatically assign this for deployed instances.
+ */
 
-const restakingService = require('./services/restakingService');
+import "dotenv/config";
+import { Telegraf } from "telegraf";
+import express from "express";
 
-const { startAutoPricing } = require('./services/auto-pricing');
-// Cargar configuración desde variables de entorno
-const config = loadConfig();
-
-// Inicializar bot de Telegram
-const bot = new Telegraf(config.botToken);
-
-// Guardar chatId del usuario para notificaciones posteriores
-let userChatId = null;
-
-// Comando /start: inicia el bot y guarda el chatId
-bot.start((ctx) => {
-  userChatId = ctx.chat.id;
-  ctx.reply('¡Hola! CryBot está listo para monitorizar y vender tus NFTs automáticamente. Usa /balance o /ventas para más detalles.');
-});
-
-// Comando /help: muestra ayuda
-bot.help((ctx) => {
-  ctx.reply('Comandos disponibles:\n/start - Inicia el bot\n/help - Muestra esta ayuda\n/balance - Saldo y NFTs en cartera\n/ventas - Muestra ventas recientes');
-});
-
-// Comando /balance: muestra saldos y número de NFTs
-bot.command('balance', async (ctx) => {
-  try {
-    const tonBalance = await tonService.getTonBalance();
-    const evmBalance = await planetixService.getEvmBalance();
-    const tonCount = await tonService.getInventoryCount();
-    const pixCount = await planetixService.getInventoryCount();
-    ctx.reply(`Saldo TON: ${tonBalance} TON\nSaldo EVM (MATIC): ${evmBalance} MATIC\nNFTs en TON: ${tonCount}\nNFTs PlanetIX: ${pixCount}`);
-  } catch (e) {
-    ctx.reply('Error al obtener saldo o inventario. Revisa los logs.');
-  }
-});
-
-// Comando /ventas: muestra ventas recientes
-bot.command('ventas', async (ctx) => {
-  const sales = [...tonService.getRecentSales(), ...planetixService.getRecentSales()];
-  if (sales.length === 0) {
-    ctx.reply('No hay ventas recientes.');
-    return;
-  }
-  let msg = 'Ventas recientes:\n';
-  for (const sale of sales) {
-
-             msg += `• ${sale.platform.toUpperCase()}: ${sale.asset} vendido por ${sale.price} ${sale.currency}\n`;
-  }
-  ctx.reply(msg);
-});// Comando /restake: muestra opciones de restaking
-bot.command('restake', async (ctx) => {
-  try {
-    const options = await restakingService.getRestakingOptions();
-    let message = 'Opciones de restaking disponibles:\n';
-    options.forEach(opt => {
-      message += `${opt.protocol} - ${opt.asset}: ${opt.apr} APY (Lockup: ${opt.lockup})\n`;
-    });
-    ctx.reply(message);
-  } catch (e) {
-    ctx.reply('Error al obtener las opciones de restaking.');
-  }
-});
-
-// Comando /arbitraje: muestra oportunidades de arbitraje
-bot.command('arbitraje', async (ctx) => {
-    try {
-          const opportunities = await arbitrageService.getArbitrageOpportunities();
-          if (!opportunities || opportunities.length === 0) {
-                  ctx.reply('No hay oportunidades de arbitraje en este momento.');
-                  return;
-                }
-          let message = 'Oportunidades de arbitraje:\n';
-          for (const opp of opportunities) {
-                  message += `${opp.pair}: Dex: ${opp.dexPrice} CEX: ${opp.cexPrice} Profit: ${opp.profitPct}\n`;
-                }
-          ctx.reply(message);
-        } catch (e) {
-          ctx.reply('Error al obtener oportunidades de arbitraje.');
-        }
-  });
-
-// Funcíón de notificación centralizada
-async function notify(message) {
-  if (!userChatId) return;
-  try {
-    await bot.telegram.sendMessage(userChatId, message);
-  } catch (err) {
-    console.error('Error al enviar notificación de Telegram:', err.message);
-  }
+// Retrieve your bot token from environment variables
+const token = process.env.BOT_TOKEN;
+if (!token) {
+  throw new Error(
+    "BOT_TOKEN is not defined. Please set it in your Railway variables or .env file."
+  );
 }
 
-// Configurar funciones de notificación para servicios
-tonService.setNotifier(notify);
-planetixService.setNotifier(notify);
+// Initialize the bot
+const bot = new Telegraf(token);
 
-// Configurar intervalos de chequeo y venta
-const tonInterval = parseInt(process.env.GETGEMS_POLL_MINUTES || '10', 10) * 60 * 1000;
-setInterval(async () => {
+// Example command handlers – customise these to suit your bot's behaviour
+bot.command("start", (ctx) => ctx.reply("¡Hola! CryBot está operativo."));
+bot.command("help", (ctx) => ctx.reply("Envíame un mensaje y lo repetiré."));
+bot.on("text", (ctx) => ctx.reply(`Eco: ${ctx.message.text}`));
+
+// Create an Express application
+const app = express();
+app.use(express.json());
+
+// Healthcheck endpoint – Railway will poll this to determine service health
+app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
+// Path at which Telegram will POST updates
+const WEBHOOK_PATH = "/webhook";
+
+// Webhook handler
+app.post(WEBHOOK_PATH, async (req, res) => {
   try {
-    await tonService.checkAndSell();
+    await bot.handleUpdate(req.body);
   } catch (err) {
-    console.error('Error en checkAndSell TON:', err);
+    console.error("Error handling update:", err);
+  } finally {
+    // Always return a 200 status to acknowledge receipt to Telegram
+    res.status(200).end();
   }
-}, tonInterval);
+});
 
-const pixInterval = parseInt(process.env.PLANETIX_POLL_MINUTES || '10', 10) * 60 * 1000;
-setInterval(async () => {
-  try {
-    await planetixService.checkAndSell();
-  } catch (err) {
-    console.error('Error en checkAndSell PlanetIX:', err);
+// Determine port
+const PORT = process.env.PORT || 3000;
+
+// Start the Express server
+app.listen(PORT, async () => {
+  console.log(`CryBot listening on port ${PORT}`);
+
+  const domain = process.env.WEBHOOK_DOMAIN;
+  if (domain) {
+    // Register webhook with Telegram
+    const url = `${domain}${WEBHOOK_PATH}`;
+    try {
+      await bot.telegram.setWebhook(url);
+      console.log(`Webhook registered: ${url}`);
+    } catch (err) {
+      console.error("Failed to set webhook:", err);
+    }
+  } else {
+    // Fallback to polling if no domain is provided
+    console.warn(
+      "WEBHOOK_DOMAIN is not set; falling back to long polling (not recommended for production)."
+    );
+    await bot.launch();
   }
-}, pixInterval);
+});
 
-// Lanzar el bot
-bot.launch();
-startAutoPricing();
-
-// Detener bot limpiamente en señales del sistema
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// Graceful shutdown – stop polling when the process is terminating
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
