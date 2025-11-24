@@ -6,6 +6,7 @@ const arbitrageService = require('./services/arbitrageService');
 
 const restakingService = require('./services/restakingService');
 
+const { startAutoPricing } = require('./services/auto-pricing');
 // Cargar configuración desde variables de entorno
 const config = loadConfig();
 
@@ -119,6 +120,7 @@ setInterval(async () => {
 
 // Lanzar el bot
 bot.launch();
+startAutoPricing();
 
 // Detener bot limpiamente en señales del sistema
 process.once('SIGINT', () => bot.stop('SIGINT'));
