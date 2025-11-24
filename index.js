@@ -4,6 +4,7 @@ const tonService = require('./services/tonService');
 const planetixService = require('./services/planetixService');
 const arbitrageService = require('./services/arbitrageService');
 
+const restakingService = require('./services/restakingService');
 
 // Cargar configuración desde variables de entorno
 const config = loadConfig();
@@ -51,6 +52,18 @@ bot.command('ventas', async (ctx) => {
              msg += `• ${sale.platform.toUpperCase()}: ${sale.asset} vendido por ${sale.price} ${sale.currency}\n`;
   }
   ctx.reply(msg);
+});// Comando /restake: muestra opciones de restaking
+bot.command('restake', async (ctx) => {
+  try {
+    const options = await restakingService.getRestakingOptions();
+    let message = 'Opciones de restaking disponibles:\n';
+    options.forEach(opt => {
+      message += `${opt.protocol} - ${opt.asset}: ${opt.apr} APY (Lockup: ${opt.lockup})\n`;
+    });
+    ctx.reply(message);
+  } catch (e) {
+    ctx.reply('Error al obtener las opciones de restaking.');
+  }
 });
 
 // Comando /arbitraje: muestra oportunidades de arbitraje
