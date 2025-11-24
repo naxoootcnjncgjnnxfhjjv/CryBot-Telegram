@@ -194,12 +194,16 @@ function startAutoListing(bot, intervalMinutes) {
   }, minutes * 60 * 1000);
 }
 
+async function getNftCurrentListing(nftAddress) {
+  return { priceNanoton: null };
+}
+
 module.exports = {
   listNftForSale,
   autoListAll,
     startAutoListing,
 
-       etNftCurrentListing,
+       getNftCurrentListing,
 
   
 };
