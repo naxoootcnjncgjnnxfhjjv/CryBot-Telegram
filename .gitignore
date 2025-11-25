@@ -1,18 +1,14 @@
-# ======================================================
-# Environment variables
-# ======================================================
+# Archivos de variables de entorno
+# Nunca rastrear archivos de configuración sensibles. El fichero `.env`
+# contiene tokens y claves privadas y debe permanecer fuera del control de versiones.
 .env
 .env.*
 *.env
-!.env
-# ======================================================
-# Node modules
-# ======================================================
+
+# Módulos de Node
 node_modules/
 
-# ======================================================
-# Logs and temporary files
-# ======================================================
+# Logs y archivos temporales
 *.log
 logs/
 npm-debug.log*
@@ -20,45 +16,33 @@ yarn-debug.log*
 yarn-error.log*
 coverage/
 
-# ======================================================
-# Build output
-# ======================================================
+# Salida de compilación
 dist/
 build/
 .tmp/
 cache/
 *.tmp
 
-# ======================================================
-# System files
-# ======================================================
+# Archivos de sistema
 .DS_Store
 Thumbs.db
 
-# ======================================================
-# Editor settings
-# ======================================================
+# Ajustes del editor
 .vscode/
 .idea/
 
-# ======================================================
-# Railway / Vercel internal files
-# ======================================================
+# Archivos internos de Railway / Vercel
 .vercel/
 .railway/
 *.sqlite
 *.db
 
-# ======================================================
-# Backups and test folders
-# ======================================================
+# Copias de seguridad y carpetas de pruebas
 test/
 backup/
 *.bak
 
-# ======================================================
-# Lockfiles (optional)
-# ======================================================
+# Archivos de bloqueo (opcional)
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
