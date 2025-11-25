@@ -1,95 +1,139 @@
 /*
- * Main entrypoint for CryBot on Railway.
+ * CryBot v0.9
  *
- * This file uses the Telegraf library to interact with the Telegram Bot API
- * and Express to expose a webhook endpoint. The bot can run in two modes:
- *  - Webhook mode: If the `WEBHOOK_DOMAIN` environment variable is set,
- *    the application will automatically register a webhook on start up
- *    pointing at `<WEBHOOK_DOMAIN>/webhook`. Railway will invoke this route
- *    whenever Telegram sends an update. This is the recommended mode for
- *    cloud deployments.
- *  - Polling mode: If `WEBHOOK_DOMAIN` is not defined, the bot falls back
- *    to long polling with `bot.launch()`. This is useful for local
- *    development.
- *
- * Environment variables consumed:
- *  - BOT_TOKEN (required): The secret token from BotFather for your bot.
- *  - WEBHOOK_DOMAIN (optional): The base URL of your deployed service
- *    without a trailing slash, e.g. `https://crybot-production.up.railway.app`.
- *  - PORT (optional): The port Express should listen on. Railway will
- *    automatically assign this for deployed instances.
+ * This file contains the entry point for the Telegram bot. It wires up
+ * the Telegram commands and background tasks that scan your wallets,
+ * trade NFTs and automatically farm opportunities across supported
+ * networks. The implementation is intentionally modular so you can
+ * extend or replace individual modules for TON, EVM, PlanetIX or
+ * GetGems without touching the core logic.
  */
 
-import "dotenv/config";
-import { Telegraf } from "telegraf";
-import express from "express";
+const { Telegraf } = require('telegraf');
+const config = require('./config');
+const ton = require('./modules/ton');
+const evm = require('./modules/evm');
+const planetIX = require('./modules/planetIX');
+const getGems = require('./modules/getGems');
 
-// Retrieve your bot token from environment variables
-const token = process.env.BOT_TOKEN;
-if (!token) {
-  throw new Error(
-    "BOT_TOKEN is not defined. Please set it in your Railway variables or .env file."
-  );
+/**
+ * Initialise the Telegram bot using the token from the config. The token
+ * must be provided via the BOT_TOKEN environment variable or defined in
+ * config.js. Without a valid token the bot will not start.
+ */
+function initBot() {
+  if (!config.BOT_TOKEN) {
+    console.error('Missing BOT_TOKEN in config. Set BOT_TOKEN in your environment or config.js');
+    process.exit(1);
+  }
+  const bot = new Telegraf(config.BOT_TOKEN);
+
+  // Helper to catch and log errors from async functions.
+  function wrap(fn) {
+    return async (...args) => {
+      try {
+        await fn(...args);
+      } catch (err) {
+        console.error(err);
+        if (args[1] && typeof args[1].reply === 'function') {
+          await args[1].reply('Ha ocurrido un error interno. Inténtalo más tarde.');
+        }
+      }
+    };
+  }
+
+  // /start command shows a welcome message.
+  bot.start(ctx => {
+    ctx.reply('¡Bienvenido a CryBot! Usa /saldo para ver tu saldo, /tokens para listar tus tokens, /reclamar para reclamar recompensas y /enviar para enviar tokens.');
+  });
+
+  // /saldo muestra el balance de todas las wallets configuradas.
+  bot.command('saldo', wrap(async ctx => {
+    const tonBalances = await ton.getBalances(config.TON_WALLETS);
+    const evmBalances = await evm.getBalances(config.EVM_WALLETS);
+    let response = '';
+    if (tonBalances.length) {
+      response += '*TON*\n';
+      tonBalances.forEach(item => {
+        response += `• ${item.address}: ${item.balance} TON\n`;
+      });
+    }
+    if (evmBalances.length) {
+      response += '\n*EVM*\n';
+      evmBalances.forEach(item => {
+        response += `• ${item.address}: ${item.balance} ETH\n`;
+      });
+    }
+    if (!response) response = 'No se han configurado wallets.';
+    ctx.replyWithMarkdownV2(response);
+  }));
+
+  // /tokens lista tokens de cada wallet (sólo EVM por defecto).
+  bot.command('tokens', wrap(async ctx => {
+    const tokens = await evm.getTokenBalances(config.EVM_WALLETS);
+    let response = '';
+    tokens.forEach(({ address, tokenBalances }) => {
+      response += `*${address}*\n`;
+      tokenBalances.forEach(tb => {
+        response += `• ${tb.symbol}: ${tb.balance}\n`;
+      });
+      response += '\n';
+    });
+    if (!response) response = 'No se han encontrado tokens.';
+    ctx.replyWithMarkdownV2(response);
+  }));
+
+  // /reclamar lanza reclamos automáticos. Actualmente stub.
+  bot.command('reclamar', wrap(async ctx => {
+    await planetIX.claimAll();
+    await getGems.claimAll();
+    ctx.reply('Recompensas reclamadas (si había disponibles).');
+  }));
+
+  // /enviar permite enviar tokens. Este es un ejemplo simple que pide
+  // parámetros y delega a evm.sendToken. En producción valida entradas
+  // y confirma con el usuario antes de enviar.
+  bot.command('enviar', wrap(async ctx => {
+    const parts = ctx.message.text.split(' ');
+    // Esperamos /enviar <address> <amount> <symbol>
+    if (parts.length < 4) {
+      ctx.reply('Uso: /enviar <address> <amount> <symbol>');
+      return;
+    }
+    const [, to, amount, symbol] = parts;
+    const tx = await evm.sendToken(config.EVM_WALLETS[0], to, amount, symbol);
+    ctx.reply(`Transacción enviada: ${tx}`);
+  }));
+
+  return bot;
 }
 
-// Initialize the bot
-const bot = new Telegraf(token);
+/**
+ * Arranca los procesos periódicos de escaneo y venta automática. Estas
+ * funciones se ejecutan en segundo plano para no bloquear el bot de
+ * Telegram. Puedes ajustar los intervalos en cada módulo.
+ */
+function startBackgroundTasks() {
+  // Escaneo de wallets cada 5 minutos.
+  setInterval(async () => {
+    await ton.scanAndSell(config.TON_WALLETS);
+    await evm.scanAndSell(config.EVM_WALLETS);
+    await planetIX.scanAndSell();
+    await getGems.scanAndSell();
+  }, 5 * 60 * 1000);
+}
 
-// Example command handlers – customise these to suit your bot's behaviour
-bot.command("start", (ctx) => ctx.reply("¡Hola! CryBot está operativo."));
-bot.command("help", (ctx) => ctx.reply("Envíame un mensaje y lo repetiré."));
-bot.on("text", (ctx) => ctx.reply(`Eco: ${ctx.message.text}`));
+// Entrypoint
+async function main() {
+  const bot = initBot();
+  startBackgroundTasks();
+  await bot.launch();
+  console.log('CryBot iniciado y ejecutándose…');
+  // Habilita graceful shutdown
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}
 
-// Create an Express application
-const app = express();
-app.use(express.json());
-
-// Healthcheck endpoint – Railway will poll this to determine service health
-app.get("/health", (req, res) => {
-  res.status(200).send("ok");
+main().catch(err => {
+  console.error(err);
 });
-
-// Path at which Telegram will POST updates
-const WEBHOOK_PATH = "/webhook";
-
-// Webhook handler
-app.post(WEBHOOK_PATH, async (req, res) => {
-  try {
-    await bot.handleUpdate(req.body);
-  } catch (err) {
-    console.error("Error handling update:", err);
-  } finally {
-    // Always return a 200 status to acknowledge receipt to Telegram
-    res.status(200).end();
-  }
-});
-
-// Determine port
-const PORT = process.env.PORT || 3000;
-
-// Start the Express server
-app.listen(PORT, async () => {
-  console.log(`CryBot listening on port ${PORT}`);
-
-  const domain = process.env.WEBHOOK_DOMAIN;
-  if (domain) {
-    // Register webhook with Telegram
-    const url = `${domain}${WEBHOOK_PATH}`;
-    try {
-      await bot.telegram.setWebhook(url);
-      console.log(`Webhook registered: ${url}`);
-    } catch (err) {
-      console.error("Failed to set webhook:", err);
-    }
-  } else {
-    // Fallback to polling if no domain is provided
-    console.warn(
-      "WEBHOOK_DOMAIN is not set; falling back to long polling (not recommended for production)."
-    );
-    await bot.launch();
-  }
-});
-
-// Graceful shutdown – stop polling when the process is terminating
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
