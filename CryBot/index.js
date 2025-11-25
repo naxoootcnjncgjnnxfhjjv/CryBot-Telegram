@@ -105,6 +105,43 @@ function initBot() {
     ctx.reply(`Transacción enviada: ${tx}`);
   }));
 
+     // Inline query handler to provide quick actions
+bot.on('inline_query', async (ctx) => {
+  const query = ctx.inlineQuery.query.trim().toLowerCase();
+
+  const results = [
+    {
+      type: 'article',
+      id: 'saldo',
+      title: 'Ver saldo total',
+      description: 'Muestra el saldo combinado de tus wallets.',
+      input_message_content: {
+        message_text: '\uD83D\uDD0D Consultando saldo total...'
+      }
+    },
+    {
+      type: 'article',
+      id: 'nfts',
+      title: 'Ver NFTs',
+      description: 'Lista tus NFTs y su valor estimado.',
+      input_message_content: {
+        message_text: '\uD83D\uDDBC Listando NFTs...'
+      }
+    },
+    {
+      type: 'article',
+      id: 'airdrops',
+      title: 'Buscar Airdrops',
+      description: 'CryBot escanea todos tus airdrops.',
+      input_message_content: {
+        message_text: '\uD83E\uA79F Escaneando airdrops...'
+      }
+    }
+  ];
+
+  await ctx.answerInlineQuery(results, { cache_time: 0 });
+});
+
   return bot;
 }
 
