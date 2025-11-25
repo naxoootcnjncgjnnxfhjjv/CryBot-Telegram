@@ -39,6 +39,18 @@ async function sellAsset(assetId, price) {
  * Claim rewards or airdrops from Planet IX for given wallets.
  * @param {string[]} wallets
  */
+async function scanAndSell(wallets = []) {
+  const lists = await scanAssets(wallets);
+  for (const { address, assets } of lists) {
+    console.log(`[PlanetIX] Escaneando assets para vender: ${address}`);
+    // Here you could call sellAsset for each asset if desired
+  }
+}
+
+async function claimAll(wallets = []) {
+  await claimRewards(wallets);
+}
+
 async function claimRewards(wallets = []) {
   for (const address of wallets) {
     console.log(`[PlanetIX] Reclamando recompensas para ${address}`);
@@ -50,4 +62,6 @@ module.exports = {
   scanAssets,
   sellAsset,
   claimRewards,
+    scanAndSell,
+  claimAll,
 };
