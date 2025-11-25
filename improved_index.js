@@ -293,7 +293,41 @@ if (config.trackAddress) {
 }
 
 // Programar tarea de harvest periódico
-if (config.harvestInterval > 0) {
+i// Handler para consultas inline
+bot.on('inline_query', async ctx => {
+  const query = ctx.inlineQuery.query.trim().toLowerCase();
+  const results = [
+    {
+      type: 'article',
+      id: 'saldo',
+      title: 'Ver saldo total',
+      description: 'Muestra el saldo combinado de tus wallets.',
+      input_message_content: {
+        message_text: '🔍 Consultando saldo total...'
+      }
+    },
+    {
+      type: 'article',
+      id: 'nfts',
+      title: 'Ver NFTs',
+      description: 'Lista tus NFTs y su valor estimado.',
+      input_message_content: {
+        message_text: '🖼 Listando NFTs...'
+      }
+    },
+    {
+      type: 'article',
+      id: 'airdrops',
+      title: 'Buscar Airdrops',
+      description: 'CryBot escanea todos tus airdrops.',
+      input_message_content: {
+        message_text: '🪂 Escaneando airdrops...'
+      }
+    }
+  ];
+  await ctx.answerInlineQuery(results, { cache_time: 0 });
+});
+f (config.harvestInterval > 0) {
   const intervalMin = config.harvestInterval;
   setInterval(async () => {
     if (config.contractsToClaim && config.contractsToClaim.length > 0) {
