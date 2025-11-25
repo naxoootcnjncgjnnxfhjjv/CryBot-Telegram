@@ -1,14 +1,14 @@
 import { Telegraf } from 'telegraf';
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
-// Eliminamos importación de node-schedule.
+// Eliminamos importación de node‑schedule.
 // Para la funcionalidad de harvest periódico emplearemos setInterval.
 
 // Import helpers and services
 import { marketplaceOpenSea } from './commands/sell_opensea.js';
 import { marketplaceLooksRare } from './commands/sell_looksrare.js';
 import { marketplaceBlur } from './commands/sell_blur.js';
-import { claimRewards, claimAllRewards } from './services/airdrop.js';
+import { claimRewards } from './services/airdrop.js';
 import { setupTracking } from './services/tracking.js';
 import { withTxDelay } from './utils/txQueue.js';
 import { loadConfig } from './config.js';
@@ -30,9 +30,9 @@ try {
 // Inicializar bot de Telegraf
 const bot = new Telegraf(config.botToken);
 
-// Middleware de autorización: solo el OWNER_ID puede usar el bot
+// Middleware de autorización: solo el adminId puede usar el bot
 bot.use((ctx, next) => {
-  if (ctx.from && ctx.from.id === config.ownerId) {
+  if (ctx.from && ctx.from.id === config.adminId) {
     return next();
   }
   // Ignorar mensajes de otros usuarios
@@ -42,7 +42,7 @@ bot.use((ctx, next) => {
 // Comando /help: muestra comandos disponibles
 bot.command('help', ctx => {
   ctx.reply([
-    '📌 Comandos disponibles:',
+    ' Comandos disponibles:',
     '/ping - Comprueba si el bot está activo',
     '/balance [address] - Muestra el saldo ETH de una dirección (por defecto la wallet del bot)',
     '/destino - Muestra la dirección destino configurada',
@@ -56,7 +56,7 @@ bot.command('help', ctx => {
 
 // Comando /ping
 bot.command('ping', ctx => {
-  ctx.reply('🏓 pong');
+  ctx.reply(' pong');
 });
 
 // Comando /balance [address]
@@ -69,7 +69,7 @@ bot.command('balance', async ctx => {
     }
     const balance = await provider.getBalance(address);
     const ethBalance = ethers.formatEther(balance);
-    ctx.reply(`💰 Saldo de ${address}:\n${ethBalance} ETH`);
+    ctx.reply(` Saldo de ${address}:\n${ethBalance} ETH`);
   } catch (error) {
     console.error(error);
     ctx.reply('❌ Error obteniendo el balance.');
@@ -79,7 +79,7 @@ bot.command('balance', async ctx => {
 // Comando /destino
 bot.command('destino', ctx => {
   if (config.destination) {
-    ctx.reply(`📥 Wallet destino configurada: ${config.destination}`);
+    ctx.reply(` Wallet destino configurada: ${config.destination}`);
   } else {
     ctx.reply('⚠️ No hay wallet destino configurada.');
   }
@@ -148,7 +148,7 @@ bot.command('vender', async ctx => {
   };
   ctx.reply(
     `⚠️ Confirma la venta del NFT \`${collection} #${tokenId}\` en *${marketLower}* por *${priceFloat} ${currencyUpper}*.` +
-    `\nResponde con /confirmar ${pendingCode} para confirmar.`,
+      `\nResponde con /confirmar ${pendingCode} para confirmar.`,
     { parse_mode: 'Markdown' }
   );
 });
@@ -178,15 +178,42 @@ bot.command('confirmar', async ctx => {
     let result;
     if (action.market === 'opensea') {
       result = await withTxDelay(() =>
-        marketplaceOpenSea(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration)
+        marketplaceOpenSea(
+          wallet,
+          action.collection,
+          action.tokenId,
+          action.price,
+          action.currency,
+          action.type,
+          action.quantity,
+          action.duration
+        )
       );
     } else if (action.market === 'looksrare') {
       result = await withTxDelay(() =>
-        marketplaceLooksRare(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration)
+        marketplaceLooksRare(
+          wallet,
+          action.collection,
+          action.tokenId,
+          action.price,
+          action.currency,
+          action.type,
+          action.quantity,
+          action.duration
+        )
       );
     } else if (action.market === 'blur') {
       result = await withTxDelay(() =>
-        marketplaceBlur(wallet, action.collection, action.tokenId, action.price, action.currency, action.type, action.quantity, action.duration)
+        marketplaceBlur(
+          wallet,
+          action.collection,
+          action.tokenId,
+          action.price,
+          action.currency,
+          action.type,
+          action.quantity,
+          action.duration
+        )
       );
     }
     if (result && result.success) {
@@ -256,19 +283,18 @@ bot.command('claimall', async ctx => {
       summary += `❌ ${addr}: error (${error.message || error})\n`;
     }
   }
-  ctx.reply(`🪂 *Resultado de Claim All:*\n${summary}`, { parse_mode: 'Markdown' });
+  ctx.reply(` *Resultado de Claim All:*\n${summary}`, { parse_mode: 'Markdown' });
 });
 
 // Iniciar monitoreo de eventos si hay dirección de seguimiento
 if (config.trackAddress) {
-  setupTracking(provider, bot, config.trackAddress, config.ownerId);
-  console.log(`🔍 Tracking habilitado para la dirección: ${config.trackAddress}`);
+  setupTracking(provider, bot, config.trackAddress, config.adminId);
+  console.log(` Tracking habilitado para la dirección: ${config.trackAddress}`);
 }
 
 // Programar tarea de harvest periódico
 if (config.harvestInterval > 0) {
   const intervalMin = config.harvestInterval;
-  // Convertir minutos a milisegundos y usar setInterval en lugar de node-schedule
   setInterval(async () => {
     if (config.contractsToClaim && config.contractsToClaim.length > 0) {
       console.log('⏲️ Ejecución periódica de harvest para contratos configurados...');
@@ -277,7 +303,7 @@ if (config.harvestInterval > 0) {
           const tx = await withTxDelay(() => claimRewards(wallet, addr));
           if (tx) {
             bot.telegram.sendMessage(
-              config.ownerId,
+              config.adminId,
               `⏲️ Harvest auto: Recompensas reclamadas en ${addr}. TX: ${tx.hash}`
             );
           }
@@ -291,7 +317,7 @@ if (config.harvestInterval > 0) {
 
 // Lanzar el bot
 bot.launch().then(() => {
-  console.log('🤖 Bot de Telegram iniciado correctamente.');
+  console.log(' Bot de Telegram iniciado correctamente.');
 }).catch(err => {
   console.error('Error al iniciar el bot:', err);
 });
