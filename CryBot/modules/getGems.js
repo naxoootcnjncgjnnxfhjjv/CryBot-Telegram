@@ -44,8 +44,23 @@ async function claimRewards(wallets = []) {
   }
 }
 
+async function scanAndSell(wallets = []) {
+  // Retrieve NFTs for each wallet and perform selling logic
+  const lists = await scanNFTs(wallets);
+  for (const { address, nfts } of lists) {
+    console.log(`[GetGems] Escaneando NFTs para vender: ${address}`);
+    // Here you could call sellNFT for each NFT if desired
+  }
+}
+
+async function claimAll(wallets = []) {
+  await claimRewards(wallets);
+}
+
 module.exports = {
   scanNFTs,
   sellNFT,
   claimRewards,
+    scanAndSell,
+  claimAll,
 };
