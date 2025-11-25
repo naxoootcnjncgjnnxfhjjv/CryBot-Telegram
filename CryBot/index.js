@@ -136,6 +136,7 @@ bot.on('inline_query', async (ctx) => {
       input_message_content: {
         message_text: '\uD83E\uA79F Escaneando airdrops...'
       }
+          // Updated inline query handler emojis
     }
   ];
 
