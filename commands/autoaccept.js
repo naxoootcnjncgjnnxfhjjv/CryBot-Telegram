@@ -6,8 +6,11 @@
  * configuration in memory and restarts the acceptor job when settings change.
  */
 
-const { startOffersAcceptor } = require('../jobs/offers-acceptor');
-const { buildOfferFilterFromEnv } = require('../ton/offers');
+// Import the offers acceptor job and offer helpers from the src tree.  The
+// commands directory sits at the project root, so we need to traverse up one
+// level before going into src/ to locate these modules.
+const { startOffersAcceptor } = require('../src/jobs/offers-acceptor');
+const { buildOfferFilterFromEnv } = require('../src/ton/offers');
 
 // Keep a reference to the running offers acceptor so we can stop/restart it
 let stopAcceptor = null;
