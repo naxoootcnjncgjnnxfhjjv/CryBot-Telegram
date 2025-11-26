@@ -8,7 +8,8 @@ const tonService = require('./services/tonService');
 const planetixService = require('./services/planetixService');
 
 // Import auto‑accept command and job
-const { registerAutoAcceptCommands } = require('./src/commands/autoaccept');
+// NOTE: autoaccept.js lives in the top‑level `commands` directory, while the job lives under `src/jobs`.
+const { registerAutoAcceptCommands } = require('./commands/autoaccept');
 const { startOffersAcceptor } = require('./src/jobs/offers-acceptor');
 
 // Load configuration
