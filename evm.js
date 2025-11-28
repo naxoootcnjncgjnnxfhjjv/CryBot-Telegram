@@ -1,26 +1,33 @@
 /*
- * EVM module
+ * Updated EVM module
  *
- * Implements basic balance and token retrieval for Ethereum compatible
- * networks using Etherscan-like APIs. Functions for sending tokens and
- * selling NFTs are stubbed. Integrate with libraries such as ethers.js
- * or web3.js for full functionality.
+ * This version of the module points at the Etherscan V2 API for balance
+ * retrieval. The API v1 endpoints have been deprecated as of August 2025,
+ * and will return a deprecation error. To use this module you must supply a
+ * valid Etherscan API key via the environment variable ETHERSCAN_API_KEY.
+ * See https://docs.etherscan.io/v2-migration for details.
  */
 
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 const config = require('../config');
 
 /**
- * Fetch native ETH balance for a single address via Etherscan API.
+ * Fetch native ETH balance for a single address via Etherscan V2 API.
  * @param {string} address
  */
 async function fetchEthBalance(address) {
   if (!address) return '0';
-  const url = `https://api.etherscan.io/api?module=account&action=balance&address=${address}&tag=latest&apikey=${config.ETHERSCAN_API_KEY}`;
+  // Use the Etherscan V2 API base path. Chain ID 1 corresponds to Ethereum mainnet.
+  const url =
+    `https://api.etherscan.io/v2/api?module=account&action=balance&chainid=1&address=${address}&apikey=${config.ETHERSCAN_API_KEY}`;
   try {
     const res = await fetch(url);
     const data = await res.json();
-    return (parseFloat(data.result) / 1e18).toString();
+    if (data.status === '1' && data.result) {
+      return (parseFloat(data.result) / 1e18).toString();
+    }
+    // Fallback to zero on unexpected response
+    return '0';
   } catch (err) {
     console.error('Error fetching ETH balance:', err);
     return '0';
@@ -56,7 +63,9 @@ async function getTokenBalances(wallets = []) {
       const tokenBalances = [];
       if (data.tokens) {
         data.tokens.forEach(t => {
-          const balance = (parseFloat(t.balance) / Math.pow(10, t.tokenInfo.decimals)).toString();
+          const balance = (
+            parseFloat(t.balance) / Math.pow(10, t.tokenInfo.decimals)
+          ).toString();
           tokenBalances.push({ symbol: t.tokenInfo.symbol, balance });
         });
       }
