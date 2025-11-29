@@ -19,6 +19,8 @@ let sellNFTs;
 let transferFunds;
 let stakeAssets;
 
+let checkPlanetIXOffers;
+
 try {
   ({ scanWallets } = require('../wallets/scan'));
 } catch (_err) {
@@ -85,7 +87,15 @@ async function runJobs() {
   } catch (err) {
     console.error('[cron] stakeAssets error:', err);
   }
-}
+      try {
+        const planetix = require('../planetix');
+        await planetix.checkOffers();
+    } catch (err) {
+        console.error('[cron] planetix error:', err);
+    }
+
+}    
+
 
 // Schedule all jobs to run every minute.  The '*' in the first field means
 // "every minute" within the hour.  Adjust the crontab string if you need a
