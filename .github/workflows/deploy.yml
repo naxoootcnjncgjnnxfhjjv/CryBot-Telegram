@@ -1,8 +1,8 @@
-name: CI & Deploy to Railway
+name: CI
 
 on:
   push:
-    branches: [ Principal ]   # tu rama se llama "main" según las capturas
+    branches: [ Principal ]
 
 jobs:
   ci:
@@ -12,23 +12,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-            - run: npm install
+      - run: npm install
       - run: npm run build --if-present
       - run: npm test --if-present
-
-  deploy:
-    needs: ci
-    if: ${{ needs.ci.result == 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install Railway CLI
-        run: npm i -g @railway/cli
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          railway up --ci
