@@ -1,1 +1,8 @@
-
+name: NodeJS with Grunt (disabled)
+on:
+    workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This workflow is disabled."
