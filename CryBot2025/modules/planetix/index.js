@@ -10,8 +10,8 @@ const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 const marketplace = new ethers.Contract(MARKETPLACE, ABI, wallet);
 
 // Main wallet where profits are sent
-conconst MAIN_WALLET = "0x7B9Fc90C99b2ae4711BDEe31049c357999e79B09";
-9;;
+const MAIN_WALLET = "0x7B9Fc90C99b2ae4711BDEe31049c357999e79B09";
+
 
 module.exports = {
     // Scan for Planet IX NFTs owned by this wallet
