@@ -1,0 +1,5 @@
+﻿node_modules/
+.env
+state.json
+parts.runtime.json
+logs/
