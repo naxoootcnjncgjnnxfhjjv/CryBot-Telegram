@@ -1,54 +1,42 @@
-import { formatWalletInventory } from '../services/walletInventory.js';
 import { scanBalances } from '../services/balanceScanner.js';
 
 export function registerCommands(bot, config) {
   bot.start((ctx) => {
-    ctx.reply('CryBot online');
+    ctx.reply('CryBot operativo. Usa /status o /balances.');
   });
 
   bot.command('ping', (ctx) => {
-    ctx.reply('pong');
+    ctx.reply('ok');
   });
 
   bot.command('status', async (ctx) => {
     await ctx.reply([
-      'CryBot Status',
-      `Environment: ${config.nodeEnv}`,
-      `TON wallets: ${config.wallets.ton.length}`,
-      `EVM wallets: ${config.wallets.evm.length}`,
-      `APTOS wallets: ${config.wallets.aptos.length}`,
-      `Dry Run: ${config.dryRun}`,
-      `Write actions: ${config.enableWriteActions}`
+      'CryBot OK',
+      `TON: ${config.wallets.ton.length}`,
+      `EVM: ${config.wallets.evm.length}`,
+      `APTOS: ${config.wallets.aptos.length}`,
+      `DryRun: ${config.dryRun}`
     ].join('\n'));
   });
 
   bot.command('wallets', async (ctx) => {
-    const lines = [
-      'Configured wallets',
-      `TON: ${config.wallets.ton.length}`,
-      `EVM: ${config.wallets.evm.length}`,
-      `APTOS: ${config.wallets.aptos.length}`
-    ];
-
-    await ctx.reply(lines.join('\n'));
-  });
-
-  bot.command('inventory', async (ctx) => {
-    await ctx.reply(formatWalletInventory(config));
+    await ctx.reply(`TON ${config.wallets.ton.length} | EVM ${config.wallets.evm.length} | APTOS ${config.wallets.aptos.length}`);
   });
 
   bot.command('balances', async (ctx) => {
+    await ctx.reply('Escaneando balances...');
+
     const balances = await scanBalances(config);
-    const lines = ['Balance summary'];
+    const lines = [];
 
     for (const item of balances) {
       if (item.error) {
-        lines.push(`${item.chain}: ${item.address} -> ERROR (${item.error})`);
+        lines.push(`${item.chain}: error`);
       } else {
-        lines.push(`${item.chain}: ${item.address} -> ${item.balance} ${item.symbol}`);
+        lines.push(`${item.chain}: ${item.balance} ${item.symbol}`);
       }
     }
 
-    await ctx.reply(lines.join('\n'));
+    await ctx.reply(lines.length ? lines.join('\n') : 'No hay wallets configuradas.');
   });
 }
