@@ -1,3 +1,5 @@
+import { formatWalletInventory } from '../services/walletInventory.js';
+
 export function registerCommands(bot, config) {
   bot.start((ctx) => {
     ctx.reply('CryBot online');
@@ -28,5 +30,9 @@ export function registerCommands(bot, config) {
     ];
 
     await ctx.reply(lines.join('\n'));
+  });
+
+  bot.command('inventory', async (ctx) => {
+    await ctx.reply(formatWalletInventory(config));
   });
 }
