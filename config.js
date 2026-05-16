@@ -1,32 +1,55 @@
-/*
- * Configuración global segura para CryBot
- * NO guarda claves en el código.
- * TODO viene desde variables de entorno en Railway.
- */
+require('dotenv').config();
+
+function list(name) {
+  return (process.env[name] || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function number(name, fallback) {
+  const value = process.env[name];
+  if (!value) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function loadConfig() {
+  return {
+    botToken: process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '',
+    port: number('PORT', 3000),
+    webhookPath: process.env.WEBHOOK_PATH || '/webhook',
+    baseUrl: process.env.BASE_URL || process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || '',
+    openaiApiKey: process.env.OPENAI_API_KEY || '',
+    tonApiKey: process.env.TON_API_KEY || process.env.TONAPI_KEY || '',
+    etherscanApiKey: process.env.ETHERSCAN_API_KEY || '',
+    rpcUrl: process.env.RPC_URL || '',
+    mainWallet: process.env.MAIN_WALLET || '',
+    pollInterval: number('POLL_INTERVAL', 5 * 60 * 1000),
+    wallets: {
+      ton: list('TON_WALLETS'),
+      evm: list('EVM_WALLETS'),
+      aptos: list('APTOS_WALLETS')
+    },
+    flags: {
+      autoAcceptOffers: process.env.AUTO_ACCEPT_OFFERS === 'true',
+      enableWriteActions: process.env.ENABLE_WRITE_ACTIONS === 'true'
+    }
+  };
+}
+
+function assertConfig(config = loadConfig()) {
+  if (!config.botToken) {
+    throw new Error('Missing BOT_TOKEN or TELEGRAM_BOT_TOKEN');
+  }
+  return config;
+}
+
+const config = loadConfig();
 
 module.exports = {
-  BOT_TOKEN: process.env.BOT_TOKEN,
-  TON_API_KEY: process.env.TON_API_KEY,
-  ETHERSCAN_API_KEY: process.env.ETHERSCAN_API_KEY,
-
-  TON_WALLETS: process.env.TON_WALLETS
-    ? process.env.TON_WALLETS.split(',').map(a => a.trim()).filter(Boolean)
-    : [],
-
-  EVM_WALLETS: process.env.EVM_WALLETS
-    ? process.env.EVM_WALLETS.split(',').map(a => a.trim()).filter(Boolean)
-    : [],
-
-  GAS_PRICE: process.env.GAS_PRICE ? Number(process.env.GAS_PRICE) : undefined,
-
-  POLL_INTERVAL: process.env.POLL_INTERVAL
-    ? Number(process.env.POLL_INTERVAL)
-    : 5 * 60 * 1000, // 5 minutos por defecto
-
-  MAIN_WALLET: process.env.MAIN_WALLET,
-  RPC_URL: process.env.RPC_URL,
-
-  PRIVATE_KEY_7B9F: process.env.PRIVATE_KEY_7B9F,
-
-  TON_WALLET_SEED: process.env.TON_WALLET_SEED,
+  ...config,
+  config,
+  loadConfig,
+  assertConfig
 };
