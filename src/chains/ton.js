@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import { fetchWithTimeout } from '../core/fetchWithTimeout.js';
 
 export async function getTonBalance({ address, apiKey }) {
   if (!address) {
@@ -11,9 +12,13 @@ export async function getTonBalance({ address, apiKey }) {
     headers.Authorization = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(`https://tonapi.io/v2/accounts/${address}`, {
-    headers
-  });
+  const response = await fetchWithTimeout(
+    `https://tonapi.io/v2/accounts/${address}`,
+    {
+      headers
+    },
+    10000
+  );
 
   if (!response.ok) {
     throw new Error(`TON API error: ${response.status}`);
