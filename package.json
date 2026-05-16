@@ -18,7 +18,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@ton/core": "^0.62.0",
+    "@ton/core": "^0.63.0",
     "@ton/ton": "^16.0.0",
     "axios": "^1.7.2",
     "dotenv": "^16.4.7",
