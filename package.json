@@ -10,6 +10,8 @@
     "check": "node --check src/index.js",
     "validate": "node src/core/validateRuntime.js",
     "audit": "node scripts/audit-structure.js",
+    "scanner": "node src/workers/scanner.js",
+    "scanner:loop": "SCANNER_LOOP=true node src/workers/scanner.js",
     "start:safe": "npm run validate && npm run audit && npm run start"
   },
   "engines": {
