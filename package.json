@@ -1,20 +1,26 @@
 {
   "name": "crybot-telegram",
-  "version": "1.1.0",
-  "description": "CryBot Telegram with Express webhook server",
-  "main": "server-express.js",
+  "version": "2.0.0",
+  "description": "Unified CryBot Telegram service with modular structure",
+  "type": "module",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node server-express.js"
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "check": "node --check src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
-    "telegraf": "^4.16.3",
-    "express": "^4.19.2",
-    "axios": "^1.7.2",
-    "ethers": "^6.13.2",
-    "dotenv": "^16.4.5",
     "@ton/core": "^0.62.0",
     "@ton/ton": "^16.0.0",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.2",
+    "express": "^4.21.2",
     "node-fetch": "^3.3.2",
+    "telegraf": "^4.16.3",
     "ws": "^8.18.3"
   }
 }
