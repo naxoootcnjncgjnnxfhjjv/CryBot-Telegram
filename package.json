@@ -11,6 +11,7 @@
     "validate": "node src/core/validateRuntime.js",
     "audit": "node scripts/audit-structure.js",
     "scanner": "node src/workers/scanner.js",
+    "ci": "npm run check && npm run validate && npm run audit && npm run scanner",
     "scanner:loop": "SCANNER_LOOP=true node src/workers/scanner.js",
     "start:safe": "npm run validate && npm run audit && npm run start"
   },
