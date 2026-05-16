@@ -38,3 +38,11 @@ jobs:
 
       - name: Structure audit
         run: npm run audit
+
+      - name: Scanner validation
+        env:
+          BOT_TOKEN: dummy-ci-token
+          BASE_URL: https://example.com
+          DRY_RUN: true
+          ENABLE_WRITE_ACTIONS: false
+        run: npm run scanner
