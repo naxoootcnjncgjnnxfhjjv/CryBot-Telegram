@@ -2,30 +2,14 @@ import express from 'express';
 import { Telegraf } from 'telegraf';
 import { config, assertRuntimeConfig } from './core/config.js';
 import { logger } from './core/logger.js';
+import { registerCommands } from './bot/registerCommands.js';
 
 assertRuntimeConfig(config);
 
 const app = express();
 const bot = new Telegraf(config.botToken);
 
-bot.start((ctx) => {
-  ctx.reply('CryBot online');
-});
-
-bot.command('ping', (ctx) => {
-  ctx.reply('pong');
-});
-
-bot.command('status', async (ctx) => {
-  await ctx.reply([
-    'CryBot Status',
-    `Environment: ${config.nodeEnv}`,
-    `TON wallets: ${config.wallets.ton.length}`,
-    `EVM wallets: ${config.wallets.evm.length}`,
-    `APTOS wallets: ${config.wallets.aptos.length}`,
-    `Dry Run: ${config.dryRun}`
-  ].join('\n'));
-});
+registerCommands(bot, config);
 
 app.use(express.json());
 
@@ -53,7 +37,8 @@ app.post(config.webhookPath, (req, res) => {
 
 app.listen(config.port, async () => {
   logger.info('crybot_boot', {
-    port: config.port
+    port: config.port,
+    env: config.nodeEnv
   });
 
   if (config.baseUrl) {
