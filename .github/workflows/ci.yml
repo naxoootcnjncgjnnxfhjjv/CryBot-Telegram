@@ -11,6 +11,11 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      BOT_TOKEN: dummy-ci-token
+      BASE_URL: https://example.com
+      DRY_RUN: true
+      ENABLE_WRITE_ACTIONS: false
 
     steps:
       - name: Checkout
@@ -29,20 +34,10 @@ jobs:
         run: npm run check
 
       - name: Runtime validation
-        env:
-          BOT_TOKEN: dummy-ci-token
-          BASE_URL: https://example.com
-          DRY_RUN: true
-          ENABLE_WRITE_ACTIONS: false
         run: npm run validate
 
       - name: Structure audit
         run: npm run audit
 
       - name: Scanner validation
-        env:
-          BOT_TOKEN: dummy-ci-token
-          BASE_URL: https://example.com
-          DRY_RUN: true
-          ENABLE_WRITE_ACTIONS: false
         run: npm run scanner
