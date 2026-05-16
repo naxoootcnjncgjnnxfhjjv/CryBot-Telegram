@@ -1,6 +1,6 @@
 # CryBot-Telegram
 
-CryBot Telegram is being migrated into a modular multi-chain Telegram automation platform.
+CryBot Telegram is a modular multi-chain Telegram backend.
 
 Current runtime:
 
@@ -8,6 +8,7 @@ Current runtime:
 - Express webhook server
 - Telegraf Telegram bot
 - Modular runtime structure
+- Read-only blockchain balance scanning
 
 ---
 
@@ -19,13 +20,17 @@ Primary runtime:
 npm start
 ```
 
+Safe runtime:
+
+```bash
+npm run start:safe
+```
+
 This launches:
 
 ```txt
 src/index.js
 ```
-
-Legacy runtime files still exist temporarily for migration compatibility.
 
 ---
 
@@ -35,9 +40,13 @@ Legacy runtime files still exist temporarily for migration compatibility.
 src/
 ├── bot/
 ├── chains/
+│   ├── aptos.js
+│   ├── evm.js
+│   └── ton.js
 ├── core/
 ├── jobs/
 ├── services/
+├── workers/
 └── index.js
 ```
 
@@ -56,8 +65,14 @@ Required variables:
 ```env
 BOT_TOKEN=
 BASE_URL=
+```
+
+Optional API variables:
+
+```env
 TONAPI_KEY=
 ETHERSCAN_API_KEY=
+RPC_URL=
 ```
 
 Wallet lists:
@@ -78,6 +93,10 @@ Safe mode.
 
 No irreversible blockchain actions.
 
+```env
+DRY_RUN=true
+```
+
 ### Write Mode
 
 Must be manually enabled.
@@ -86,15 +105,30 @@ Must be manually enabled.
 ENABLE_WRITE_ACTIONS=false
 ```
 
+Write mode is not used by the current read-only scanner.
+
 ---
 
-## Available Commands
+## Available Telegram Commands
 
 - /ping
 - /status
 - /wallets
+- /inventory
+- /balances
 
-Additional commands will migrate progressively from the legacy runtime.
+---
+
+## NPM Commands
+
+```bash
+npm run check
+npm run validate
+npm run audit
+npm run scanner
+npm run scanner:loop
+npm run start:safe
+```
 
 ---
 
@@ -117,35 +151,40 @@ Never commit:
 
 Everything must remain in environment variables.
 
+Current production posture:
+
+- read-only
+- dry-run by default
+- no automatic claims
+- no automatic sells
+- no automatic transfers
+
 ---
 
-## Planned Architecture
+## CI
 
-Target structure:
+GitHub Actions validates:
 
-```txt
-apps/
-├── telegram-bot
-├── scanner-worker
-└── cron-worker
-```
-
-Recommended stack:
-
-- Railway
-- PostgreSQL
-- Prisma
-- Redis
-- GitHub Actions
+- npm install
+- syntax checks
+- runtime validation
+- structure audit
+- scanner execution
 
 ---
 
 ## Migration Status
 
-Migration in progress.
-
-Legacy CommonJS files still coexist with the new ESM runtime and will progressively move into:
+Legacy files still exist and must not be used as production entrypoints:
 
 ```txt
-_archive/
+server-express.js
+config.js
+improved_index.js
+```
+
+Production entrypoint is:
+
+```txt
+src/index.js
 ```
