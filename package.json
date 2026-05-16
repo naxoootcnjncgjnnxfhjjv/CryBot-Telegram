@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "check": "node --check src/index.js",
+    "check": "node --check src/index.js && node --check src/bot/registerCommands.js && node --check src/workers/scanner.js && node --check src/services/balanceScanner.js && node --check src/chains/evm.js && node --check src/chains/ton.js && node --check src/chains/aptos.js",
     "validate": "node src/core/validateRuntime.js",
     "audit": "node scripts/audit-structure.js",
     "scanner": "node src/workers/scanner.js",
