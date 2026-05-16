@@ -1,4 +1,5 @@
 import { formatWalletInventory } from '../services/walletInventory.js';
+import { scanBalances } from '../services/balanceScanner.js';
 
 export function registerCommands(bot, config) {
   bot.start((ctx) => {
@@ -34,5 +35,20 @@ export function registerCommands(bot, config) {
 
   bot.command('inventory', async (ctx) => {
     await ctx.reply(formatWalletInventory(config));
+  });
+
+  bot.command('balances', async (ctx) => {
+    const balances = await scanBalances(config);
+    const lines = ['Balance summary'];
+
+    for (const item of balances) {
+      if (item.error) {
+        lines.push(`${item.chain}: ${item.address} -> ERROR (${item.error})`);
+      } else {
+        lines.push(`${item.chain}: ${item.address} -> ${item.balance} ${item.symbol}`);
+      }
+    }
+
+    await ctx.reply(lines.join('\n'));
   });
 }
