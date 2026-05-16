@@ -14,6 +14,20 @@ Fallback command:
 npm start
 ```
 
+## Scanner Worker
+
+Optional scanner worker:
+
+```bash
+npm run scanner
+```
+
+Continuous scanner mode:
+
+```bash
+npm run scanner:loop
+```
+
 ## Do Not Use
 
 The following legacy files must not be used as start commands:
@@ -44,6 +58,7 @@ TON_WALLETS=
 EVM_WALLETS=
 APTOS_WALLETS=
 MAIN_WALLET=
+SCAN_INTERVAL_MS=300000
 ```
 
 ## Health Check
