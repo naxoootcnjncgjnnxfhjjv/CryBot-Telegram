@@ -8,6 +8,8 @@ const requiredPaths = [
   'src/bot/registerCommands.js',
   'src/services/walletInventory.js',
   'src/workers/scanner.js',
+  'src/chains/evm.js',
+  'src/chains/ton.js',
   'README.md',
   'ARCHITECTURE.md',
   'DEPLOYMENT.md',
