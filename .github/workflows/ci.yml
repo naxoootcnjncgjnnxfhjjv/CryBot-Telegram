@@ -1,0 +1,37 @@
+name: CryBot CI
+
+on:
+  push:
+    branches:
+      - Principal
+  pull_request:
+    branches:
+      - Principal
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Runtime validation
+        env:
+          BOT_TOKEN: dummy-ci-token
+          BASE_URL: https://example.com
+          DRY_RUN: true
+          ENABLE_WRITE_ACTIONS: false
+        run: npm run validate
