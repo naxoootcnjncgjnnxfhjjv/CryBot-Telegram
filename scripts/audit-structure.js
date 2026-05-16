@@ -6,6 +6,7 @@ const requiredPaths = [
   'src/core/logger.js',
   'src/core/runtimeInfo.js',
   'src/core/validateRuntime.js',
+  'src/core/fetchWithTimeout.js',
   'src/bot/registerCommands.js',
   'src/services/walletInventory.js',
   'src/services/balanceScanner.js',
