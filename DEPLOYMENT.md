@@ -61,6 +61,24 @@ MAIN_WALLET=
 SCAN_INTERVAL_MS=300000
 ```
 
+## CI Install Policy
+
+The repository currently uses:
+
+```bash
+npm install
+```
+
+The workflow intentionally does not enable `cache: npm` because there is no committed `package-lock.json` yet.
+
+If a `package-lock.json` is added later, the CI can be changed to use:
+
+```bash
+npm ci
+```
+
+and npm cache may be re-enabled safely.
+
 ## Health Check
 
 Use:
