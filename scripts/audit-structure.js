@@ -6,8 +6,11 @@ const requiredPaths = [
   'src/core/logger.js',
   'src/core/validateRuntime.js',
   'src/bot/registerCommands.js',
+  'src/services/walletInventory.js',
+  'src/workers/scanner.js',
   'README.md',
   'ARCHITECTURE.md',
+  'DEPLOYMENT.md',
   '.env.example',
   '.github/workflows/ci.yml'
 ];
