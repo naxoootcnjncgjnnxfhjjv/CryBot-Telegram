@@ -35,3 +35,6 @@ jobs:
           DRY_RUN: true
           ENABLE_WRITE_ACTIONS: false
         run: npm run validate
+
+      - name: Structure audit
+        run: npm run audit
