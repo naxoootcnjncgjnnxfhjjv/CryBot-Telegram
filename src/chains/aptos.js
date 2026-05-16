@@ -1,11 +1,15 @@
-import fetch from 'node-fetch';
+import { fetchWithTimeout } from '../core/fetchWithTimeout.js';
 
 export async function getAptosBalance({ address }) {
   if (!address) {
     throw new Error('Missing Aptos address');
   }
 
-  const response = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resources`);
+  const response = await fetchWithTimeout(
+    `https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resources`,
+    {},
+    10000
+  );
 
   if (!response.ok) {
     throw new Error(`Aptos API error: ${response.status}`);
