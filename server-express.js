@@ -1,3 +1,8 @@
+/**
+ * @deprecated Legacy CommonJS runtime.
+ * Production runtime is src/index.js via npm start.
+ * Keep only as migration reference until services are moved into src/.
+ */
 require('dotenv').config();
 const express = require('express');
 const { Telegraf } = require('telegraf');
