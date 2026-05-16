@@ -1,5 +1,6 @@
 import { getEvmNativeBalance } from '../chains/evm.js';
 import { getTonBalance } from '../chains/ton.js';
+import { getAptosBalance } from '../chains/aptos.js';
 
 export async function scanBalances(config) {
   const results = [];
@@ -21,7 +22,11 @@ export async function scanBalances(config) {
   }
 
   for (const address of config.wallets.aptos) {
-    results.push({ chain: 'APTOS', address, status: 'configured', note: 'Aptos balance scanner pending' });
+    try {
+      results.push(await getAptosBalance({ address }));
+    } catch (error) {
+      results.push({ chain: 'APTOS', address, error: error.message });
+    }
   }
 
   return results;
