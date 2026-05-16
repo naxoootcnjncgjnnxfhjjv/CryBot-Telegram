@@ -17,9 +17,25 @@ README.md
 DEPLOYMENT.md
 ARCHITECTURE.md
 .env.example
+CLEANUP_AUDIT.md
 ```
 
-## Legacy Reference Files
+## Reviewed Classification
+
+### Keep Production
+
+```txt
+package.json
+README.md
+DEPLOYMENT.md
+ARCHITECTURE.md
+CLEANUP_AUDIT.md
+.env.example
+.github/workflows/ci.yml
+src/
+```
+
+### Keep As Legacy Reference
 
 Do not use as production entrypoints:
 
@@ -32,7 +48,19 @@ services/ legacy root folder if present
 utils/ legacy root folder if present
 ```
 
-These files may contain useful migration logic. Do not delete until every useful function has been migrated into `src/`.
+Reason: these may still contain useful Telegram, marketplace, NFT, claim, farming or chain-specific logic that should be migrated before deletion.
+
+### Do Not Delete Without Manual Extraction
+
+```txt
+wallet references
+marketplace logic
+NFT listing logic
+airdrop/claim logic
+TON/GetGems logic
+PlanetIX logic
+OpenSea/Blur/LooksRare logic
+```
 
 ## Current Safe Runtime Commands
 
@@ -59,9 +87,18 @@ npm run audit
 - GitHub Actions npm cache removed because no lockfile is present.
 - CI runtime environment moved to job scope.
 
+## Current Production Capabilities
+
+- Telegram runtime starts from `src/index.js`.
+- `/status` shows configured wallet counts.
+- `/wallets` shows wallet counts.
+- `/balances` reads TON, EVM and Aptos balances in read-only mode.
+- Scanner worker can run once or loop.
+- CI validates install, syntax, runtime, audit and scanner.
+
 ## Remaining Cleanup Work
 
-- Review root legacy files.
+- Review root legacy files in detail.
 - Migrate useful marketplace/NFT/claim logic into `src/services` or `src/chains`.
-- Remove legacy entrypoints after migration.
+- Remove legacy entrypoints only after migration.
 - Add real persistence later.
