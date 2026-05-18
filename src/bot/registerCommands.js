@@ -1,4 +1,8 @@
 import { scanBalances } from '../services/balanceScanner.js';
+import {
+  buildTonNftInventory,
+  formatTonNftInventory
+} from '../services/tonNftInventoryReadOnly.js';
 
 function shortAddress(address = '') {
   if (address.length <= 14) return address;
@@ -34,7 +38,7 @@ function formatBalances(balances) {
 
 export function registerCommands(bot, config) {
   bot.start((ctx) => {
-    ctx.reply('CryBot operativo. Usa /status o /balances.');
+    ctx.reply('CryBot operativo. Usa /status, /balances o /nfts.');
   });
 
   bot.command('ping', (ctx) => {
@@ -47,7 +51,8 @@ export function registerCommands(bot, config) {
       `TON: ${config.wallets.ton.length}`,
       `EVM: ${config.wallets.evm.length}`,
       `APTOS: ${config.wallets.aptos.length}`,
-      `DryRun: ${config.dryRun}`
+      `DryRun: ${config.dryRun}`,
+      `WriteActions: ${config.enableWriteActions}`
     ].join('\n'));
   });
 
@@ -60,5 +65,12 @@ export function registerCommands(bot, config) {
 
     const balances = await scanBalances(config);
     await ctx.reply(formatBalances(balances));
+  });
+
+  bot.command('nfts', async (ctx) => {
+    await ctx.reply('Escaneando NFTs TON en modo lectura...');
+
+    const inventory = await buildTonNftInventory(config);
+    await ctx.reply(formatTonNftInventory(inventory).slice(0, 3900));
   });
 }
