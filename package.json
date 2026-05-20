@@ -9,9 +9,10 @@
     "dev": "node --watch src/index.js",
     "check": "node --check src/index.js && node --check src/bot/registerCommands.js && node --check src/workers/scanner.js && node --check src/services/balanceScanner.js && node --check src/services/tonNftInventoryReadOnly.js && node --check src/chains/evm.js && node --check src/chains/ton.js && node --check src/chains/aptos.js",
     "validate": "node src/core/validateRuntime.js",
+    "validate:wallets": "node src/core/validateWallets.js",
     "audit": "node scripts/audit-structure.js",
     "scanner": "node src/workers/scanner.js",
-    "ci": "npm run check && npm run validate && npm run audit && npm run scanner",
+    "ci": "npm run check && npm run validate && npm run validate:wallets && npm run audit && npm run scanner",
     "scanner:loop": "SCANNER_LOOP=true node src/workers/scanner.js",
     "start:safe": "npm run validate && npm run audit && npm run start"
   },
