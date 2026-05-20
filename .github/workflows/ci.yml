@@ -35,6 +35,9 @@ jobs:
       - name: Runtime validation
         run: npm run validate
 
+      - name: Wallet validation
+        run: npm run validate:wallets
+
       - name: Structure audit
         run: npm run audit
 
