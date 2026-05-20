@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { mergeConfiguredWallets } from './defaultWallets.js';
 
 function list(name) {
   return (process.env[name] || '')
@@ -23,6 +24,11 @@ function bool(name, fallback = false) {
 export function loadConfig() {
   const publicDomain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || '';
   const baseUrl = process.env.BASE_URL || (publicDomain ? `https://${publicDomain.replace(/^https?:\/\//, '')}` : '');
+  const configuredWallets = {
+    ton: list('TON_WALLETS'),
+    evm: list('EVM_WALLETS'),
+    aptos: list('APTOS_WALLETS')
+  };
 
   return {
     nodeEnv: process.env.NODE_ENV || 'development',
@@ -38,11 +44,7 @@ export function loadConfig() {
     etherscanApiKey: process.env.ETHERSCAN_API_KEY || '',
     rpcUrl: process.env.RPC_URL || 'https://ethereum.publicnode.com',
     destinationWallet: process.env.MAIN_WALLET || process.env.DESTINATION_WALLET || '',
-    wallets: {
-      ton: list('TON_WALLETS'),
-      evm: list('EVM_WALLETS'),
-      aptos: list('APTOS_WALLETS')
-    }
+    wallets: mergeConfiguredWallets(configuredWallets)
   };
 }
 
