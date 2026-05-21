@@ -39,6 +39,7 @@ export function loadConfig() {
     webhookPath: process.env.WEBHOOK_PATH || '/webhook',
     dryRun: bool('DRY_RUN', true),
     enableWriteActions: bool('ENABLE_WRITE_ACTIONS', false),
+    requireBotToken: bool('REQUIRE_BOT_TOKEN', false),
     scanIntervalMs: number('SCAN_INTERVAL_MS', 5 * 60 * 1000),
     tonApiKey: process.env.TONAPI_KEY || process.env.TON_API_KEY || '',
     etherscanApiKey: process.env.ETHERSCAN_API_KEY || '',
@@ -49,7 +50,7 @@ export function loadConfig() {
 }
 
 export function assertRuntimeConfig(config = loadConfig()) {
-  if (!config.botToken) {
+  if (config.requireBotToken && !config.botToken) {
     throw new Error('Missing BOT_TOKEN or TELEGRAM_BOT_TOKEN');
   }
   return config;
